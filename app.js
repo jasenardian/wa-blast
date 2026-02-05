@@ -460,21 +460,18 @@ app.get('/api/admin/users', isAuthenticated, isSuperAdmin, (req, res) => {
             // Check connection status
             // A user is "connected" if ANY of their sessions are connected
             const sess = await new Promise(resolve => {
-                db.get("SELECT count(*) as cnt FROM whatsapp_sessions WHERE user_id = ? AND status = 'connected'", [u.id], (e, r) => resolve(r));
+                db.all("SELECT status FROM whatsapp_sessions WHERE user_id = ?", [u.id], (e, r) => resolve(r || []));
             });
-            const isConnected = sess && sess.cnt > 0;
             
-            // Get detailed info from first connected session (optional)
-            let info = null;
-            if (isConnected) {
-                 // Get info from one of the connected sessions
-                 // Implementation detail: iterate sessions map
-                 // For now just return status
-            }
+            const connectedDevices = sess.filter(s => s.status === 'connected').length;
+            const isConnected = connectedDevices > 0;
+            const deviceCount = sess.length;
 
             return {
                 ...u,
                 status: isConnected ? 'connected' : 'disconnected',
+                device_count: deviceCount,
+                connected_device_count: connectedDevices,
                 info: null
             };
         }));

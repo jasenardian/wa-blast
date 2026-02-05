@@ -109,6 +109,13 @@
     // const BASE_URL = 'https://whatsapp-blast.up.railway.app';
     const BASE_URL = ''; // Use relative path
 
+    // Auto-fill referral from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const ref = urlParams.get('ref');
+    if (ref) {
+        document.getElementById('referralCode').value = ref;
+    }
+
     document.getElementById('registerForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
