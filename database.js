@@ -19,7 +19,8 @@ if (isProduction) {
     // If you run locally, provide DATABASE_URL in .env
     console.log("Using PostgreSQL Database (Local Dev)");
     db = new Pool({
-        connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/wablast',
+        // Use connection string if available, otherwise default to local pg
+        connectionString: process.env.DATABASE_URL,
     });
 }
 
@@ -69,6 +70,12 @@ const dbAdapter = {
 
 // --- MIGRATION SCRIPT FOR POSTGRES ---
 const initDb = async () => {
+    // Only attempt connection if DB is configured (avoids crash on local if no PG running)
+    if (!process.env.DATABASE_URL && !isProduction) {
+         console.warn("WARNING: No DATABASE_URL provided. PostgreSQL init skipped. Application may crash if DB is accessed.");
+         return;
+    }
+
     try {
         const client = await db.connect();
         try {
