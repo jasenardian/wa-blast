@@ -16,6 +16,7 @@
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "node-telegram-bot-api": "^0.67.0",
+    "pg": "^8.18.0",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.3",
     "sqlite3": "^5.1.7",
