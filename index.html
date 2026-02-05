@@ -389,6 +389,11 @@
         }
 
         /* --- Commission Info Styles --- */
+        @keyframes blinkRedBg {
+            0%, 100% { background-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+            50% { background-color: rgba(220, 53, 69, 0.8); color: white; box-shadow: 0 0 10px rgba(220, 53, 69, 0.5); }
+        }
+
         .commission-info-link {
             position: absolute;
             top: 20px;
@@ -403,6 +408,7 @@
             align-items: center;
             justify-content: center;
             border-radius: 50%;
+            animation: blinkRedBg 2s infinite ease-in-out;
         }
         .commission-info-link:hover {
             color: white;
@@ -796,7 +802,10 @@
                 <div class="card card-custom" id="adminPanel">
                     <div class="card-header-custom bg-primary text-white d-flex justify-content-between align-items-center" style="background: var(--dark-gradient) !important; color: white !important;">
                         <span><i class="bi bi-shield-lock"></i> Superadmin Control Panel</span>
-                        <button class="btn btn-sm btn-light text-dark shadow-sm" onclick="loadAdminData()"><i class="bi bi-arrow-clockwise"></i> Refresh Data</button>
+                        <div>
+                             <button class="btn btn-sm btn-outline-light me-2" onclick="downloadBackup()"><i class="bi bi-download"></i> Backup DB</button>
+                             <button class="btn btn-sm btn-light text-dark shadow-sm" onclick="loadAdminData()"><i class="bi bi-arrow-clockwise"></i> Refresh Data</button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <ul class="nav nav-tabs nav-tabs-bordered mb-4" id="adminTabs" role="tablist">
@@ -1509,6 +1518,10 @@
     
     function doLogout() {
         window.location.href = '/logout';
+    }
+
+    function downloadBackup() {
+        window.location.href = '/api/admin/backup';
     }
 
 </script>

@@ -9,6 +9,10 @@ let db;
 
 if (isProduction) {
     console.log("Using PostgreSQL Database (Production)");
+    // Mask password in logs
+    const maskedUrl = process.env.DATABASE_URL.replace(/:[^:@]*@/, ':****@');
+    console.log(`Connecting to DATABASE_URL: ${maskedUrl}`);
+    
     db = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: { rejectUnauthorized: false } // Required for Railway/Heroku

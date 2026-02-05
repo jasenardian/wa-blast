@@ -88,7 +88,7 @@ function spintax(text) {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 function updateBalance(userId, amount) {
-    db.run("UPDATE users SET balance = IFNULL(balance, 0) + ? WHERE id = ?", [amount, userId], (err) => {
+    db.run("UPDATE users SET balance = COALESCE(balance, 0) + ? WHERE id = ?", [amount, userId], (err) => {
         if (err) console.error("Error updating balance:", err.message);
         else console.log(`Added Rp ${amount} to User ${userId}`);
     });
@@ -404,7 +404,7 @@ app.post('/api/devices', isAuthenticated, (req, res) => {
     const sessionName = session_name || `Device ${Date.now()}`;
     const uniqueSessionId = `session-${userId}-${Date.now()}`; // Unique for LocalAuth
 
-    db.run("INSERT INTO whatsapp_sessions (user_id, session_name, session_id, status) VALUES (?, ?, ?, ?)", 
+    db.run("INSERT INTO whatsapp_sessions (user_id, session_name, session_id, status) VALUES (?, ?, ?, ?) RETURNING id", 
         [userId, sessionName, uniqueSessionId, 'disconnected'], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         
@@ -548,6 +548,23 @@ app.post('/api/admin/device/restart', isAuthenticated, isSuperAdmin, (req, res) 
     }
 });
 
+// --- Backup API ---
+app.get('/api/admin/backup', isAuthenticated, isSuperAdmin, (req, res) => {
+    const dbPath = path.resolve(__dirname, 'data/database.sqlite');
+    // Check if file exists in data dir first, else try root (legacy)
+    let finalPath = dbPath;
+    if (!fs.existsSync(dbPath)) {
+        // Try root
+        finalPath = path.resolve(__dirname, 'database.sqlite');
+    }
+    
+    if (fs.existsSync(finalPath)) {
+        res.download(finalPath, `backup-wa-blast-${Date.now()}.sqlite`);
+    } else {
+        res.status(404).json({ error: 'Database file not found' });
+    }
+});
+
 // Member APIs for history
 app.get('/api/me/withdrawals', isAuthenticated, (req, res) => {
     db.all("SELECT * FROM withdrawals WHERE user_id = ? ORDER BY created_at DESC", [req.session.userId], (err, rows) => {
@@ -673,7 +690,7 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
 
     const numberList = numbers.split(/\r?\n/).filter(n => n.trim() !== '');
     
-    db.run("INSERT INTO blast_logs (admin_id, sender_mode, total_target) VALUES (?, ?, ?)", 
+    db.run("INSERT INTO blast_logs (admin_id, sender_mode, total_target) VALUES (?, ?, ?) RETURNING id", 
         [currentUserId, 'multi-device', numberList.length], 
         function(err) {
           if (err) return res.status(500).json({ status: 'error', message: 'Database error' });
@@ -785,7 +802,7 @@ function restoreSessions() {
                 db.get("SELECT id FROM whatsapp_sessions WHERE session_id = ?", [legacyId], (err, row) => {
                     if (!row) {
                         console.log(`Migrating legacy session for User ${user.username}...`);
-                        db.run("INSERT INTO whatsapp_sessions (user_id, session_name, session_id, status) VALUES (?, ?, ?, ?)", 
+                        db.run("INSERT INTO whatsapp_sessions (user_id, session_name, session_id, status) VALUES (?, ?, ?, ?) RETURNING id", 
                             [user.id, 'Main Device (Migrated)', legacyId, 'disconnected'], function(err) {
                                 if (!err) initializeClient(this.lastID, user.id, legacyId);
                             });
