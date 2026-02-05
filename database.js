@@ -8,7 +8,7 @@ const isProduction = process.env.NODE_ENV === 'production' || process.env.DATABA
 let db;
 
 if (isProduction) {
-    console.log("Using PostgreSQL Database");
+    console.log("Using PostgreSQL Database (Production)");
     db = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: { rejectUnauthorized: false } // Required for Railway/Heroku
@@ -20,7 +20,7 @@ if (isProduction) {
     console.log("Using PostgreSQL Database (Local Dev)");
     db = new Pool({
         // Use connection string if available, otherwise default to local pg
-        connectionString: process.env.DATABASE_URL,
+        connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/wablast',
     });
 }
 
