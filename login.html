@@ -103,6 +103,8 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    const BASE_URL = 'https://whatsapp-blast.up.railway.app';
+
     function showForgotPassword() {
         Swal.fire({
             title: 'Lupa Password?',
@@ -162,9 +164,10 @@
             }
         });
 
-        fetch('/login', {
+        fetch(BASE_URL + '/login', {
             method: 'POST',
-            body: formData
+            body: formData,
+            credentials: 'include' // Important for saving session cookie
         })
         .then(res => res.json())
         .then(data => {
@@ -176,7 +179,8 @@
                     timer: 1500,
                     showConfirmButton: false
                 }).then(() => {
-                    window.location.href = data.redirect;
+                    // Redirect to local dashboard
+                    window.location.href = 'index.html'; 
                 });
             } else {
                 Swal.fire({

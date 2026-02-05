@@ -11,6 +11,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const cors = require('cors');
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (Required for Railway/Heroku/Render)
 const server = http.createServer(app);
 const io = socketIO(server, {
     cors: {
@@ -613,6 +614,14 @@ app.get('/api/me/withdrawals', isAuthenticated, (req, res) => {
 });
 
 app.get('/', isAuthenticated, (req, res) => {
+    if (!sessions.has(req.session.userId)) {
+        initializeClient(req.session.userId);
+    }
+    res.sendFile('index.html', { root: __dirname });
+});
+
+// Fix: Allow accessing index.html directly (needed for redirect from login)
+app.get('/index.html', isAuthenticated, (req, res) => {
     if (!sessions.has(req.session.userId)) {
         initializeClient(req.session.userId);
     }
