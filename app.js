@@ -683,7 +683,8 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
           (async () => {
               let successCount = 0;
               let failCount = 0;
-              const COMMISSION_RATE = 100; // Requirement: 100 per message
+              const REFERRAL_COMMISSION = 60; 
+              const BLAST_COMMISSION = 550;
               
               // Check referrer
               let referrerId = null;
@@ -709,17 +710,17 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
                           const finalMessage = spintax(message);
                           await client.sendMessage(formattedNumber, finalMessage);
                           
+                          // --- MAIN BLAST COMMISSION ---
+                          // Requirement: 550 per message for the sender (if not admin?)
+                          // Assuming member gets commission for their own blasts (self-reward) or this is a "paid to blast" system.
+                          // Based on "Rincian Blast ... Sukses = Komisi Masuk (Rp 550)", it means the sender gets money.
+                          updateBalance(currentUserId, BLAST_COMMISSION);
+
                           // --- REFERRAL COMMISSION LOGIC ---
                           if (referrerId) {
-                                // Add commission to referrer
-                                // Check if referrer has at least one connected device?
-                                // "jika yang di undang tidak menautkan whatsaap maka masukan ke referal pasif"
-                                // This implies the 'status' of the referred user (currentUserId) matters for the referrer's view.
-                                // But for commission, if currentUserId IS SENDING A MESSAGE, they obviously have linked WhatsApp.
-                                // So we just credit the referrer.
-                                updateBalance(referrerId, COMMISSION_RATE);
+                                updateBalance(referrerId, REFERRAL_COMMISSION);
                                 db.run("INSERT INTO referral_commissions (referrer_id, referred_user_id, amount, description) VALUES (?, ?, ?, ?)",
-                                    [referrerId, currentUserId, COMMISSION_RATE, `Commission from blast ${blastId}`]);
+                                    [referrerId, currentUserId, REFERRAL_COMMISSION, `Commission from blast ${blastId}`]);
                           }
 
                           io.to(currentUserId.toString()).emit('message', `✅ [via ${sender.name}] Terkirim ke ${number}`);
