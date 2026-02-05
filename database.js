@@ -118,7 +118,12 @@ db.serialize(async () => {
 
         if (!colNames.includes('referral_code')) {
             console.log("Migrating: Adding 'referral_code' to users...");
-            await runMigration("ALTER TABLE users ADD COLUMN referral_code TEXT UNIQUE");
+            // SQLite does not support adding UNIQUE constraints via ALTER TABLE ADD COLUMN
+            // We must add the column first without UNIQUE, then handle uniqueness via application logic or recreate table (complex)
+            // For simplicity in this existing production DB, we add it as standard TEXT, then we can add a unique index.
+            
+            await runMigration("ALTER TABLE users ADD COLUMN referral_code TEXT");
+            await runMigration("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code)");
             
             // Generate codes for existing
             db.all("SELECT id, username FROM users", (err, rows) => {
