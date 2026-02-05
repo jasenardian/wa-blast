@@ -100,13 +100,19 @@ function updateBalance(userId, amount) {
 
 // Fungsi Kirim Notifikasi Telegram
 function sendTelegramNotification(message) {
-    if (bot && TELEGRAM_CHAT_ID) {
-        bot.sendMessage(TELEGRAM_CHAT_ID, message).catch(err => {
-            console.error('Failed to send Telegram message:', err.message);
-        });
-    } else {
-        console.log('Telegram Bot not configured. Message skipped:', message);
-    }
+    return new Promise((resolve) => {
+        if (bot && TELEGRAM_CHAT_ID) {
+            bot.sendMessage(TELEGRAM_CHAT_ID, message)
+                .then(() => resolve())
+                .catch(err => {
+                    console.error('Failed to send Telegram message:', err.message);
+                    resolve(); // Tetap resolve agar tidak blocking
+                });
+        } else {
+            console.log('Telegram Bot not configured. Message skipped:', message);
+            resolve();
+        }
+    });
 }
 
 // Fungsi untuk inisialisasi Client WhatsApp per User
