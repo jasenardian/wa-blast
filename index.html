@@ -617,6 +617,26 @@
                                 </div>
                                 <div class="h4 fw-bold text-primary mb-0" id="myReferralCode">LOADING...</div>
                             </div>
+                            <div class="row g-2 mt-2">
+                                <div class="col-4">
+                                    <div class="border rounded p-2 text-center bg-light">
+                                        <div class="small text-muted" style="font-size:0.7rem;">TOTAL</div>
+                                        <div class="fw-bold text-dark" id="refTotal">0</div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="border rounded p-2 text-center bg-success bg-opacity-10">
+                                        <div class="small text-success" style="font-size:0.7rem;">AKTIF</div>
+                                        <div class="fw-bold text-success" id="refActive">0</div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="border rounded p-2 text-center bg-secondary bg-opacity-10">
+                                        <div class="small text-muted" style="font-size:0.7rem;">PASIF</div>
+                                        <div class="fw-bold text-secondary" id="refPassive">0</div>
+                                    </div>
+                                </div>
+                            </div>
                             <p class="small text-muted mt-2 mb-0">
                                 Ajak teman menggunakan kode ini. Dapatkan <strong>Rp 100</strong> setiap pesan yang mereka kirim!
                             </p>
@@ -1205,6 +1225,13 @@
                 document.getElementById('statOffline').innerText = stats.devices_offline;
                 document.getElementById('statTotal').innerText = stats.devices_total;
                 document.getElementById('statSent').innerText = stats.messages_sent;
+                
+                // Referral Stats
+                if (document.getElementById('refTotal')) {
+                    document.getElementById('refTotal').innerText = stats.referral_total || 0;
+                    document.getElementById('refActive').innerText = stats.referral_active || 0;
+                    document.getElementById('refPassive').innerText = stats.referral_passive || 0;
+                }
             })
             .catch(e => console.error("Stats error", e));
     }

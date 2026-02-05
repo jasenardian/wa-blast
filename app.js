@@ -126,6 +126,7 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
         restartOnAuthFail: true,
         puppeteer: {
             headless: true,
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined, // Use installed Chromium on Railway
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -335,12 +336,34 @@ app.get('/api/me/stats', isAuthenticated, (req, res) => {
         });
     });
 
-    Promise.all([p1, p2]).then(([deviceStats, messageStats]) => {
+    const p3 = new Promise(resolve => {
+        // Count Active Referral (Has at least 1 connected device)
+        db.get(`
+            SELECT COUNT(DISTINCT u.id) as active_refs 
+            FROM users u
+            JOIN whatsapp_sessions ws ON u.id = ws.user_id 
+            WHERE u.referred_by = ? AND ws.status = 'connected'
+        `, [userId], (err, row) => {
+            resolve(row ? row.active_refs : 0);
+        });
+    });
+
+    const p4 = new Promise(resolve => {
+        // Count Total Referrals
+        db.get("SELECT COUNT(*) as total_refs FROM users WHERE referred_by = ?", [userId], (err, row) => {
+            resolve(row ? row.total_refs : 0);
+        });
+    });
+
+    Promise.all([p1, p2, p3, p4]).then(([deviceStats, messageStats, activeRef, totalRef]) => {
         res.json({
             devices_total: deviceStats.total || 0,
             devices_online: deviceStats.online || 0,
             devices_offline: (deviceStats.total - deviceStats.online) || 0,
-            messages_sent: messageStats || 0
+            messages_sent: messageStats || 0,
+            referral_active: activeRef,
+            referral_passive: totalRef - activeRef,
+            referral_total: totalRef
         });
     }).catch(err => {
         res.status(500).json({ error: err.message });
