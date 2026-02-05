@@ -48,6 +48,26 @@ db.serialize(() => {
                 else console.log("Column 'balance' added successfully.");
             });
         }
+
+        // Migrasi Referral
+        const hasReferralCode = columns.some(col => col.name === 'referral_code');
+        if (!hasReferralCode) {
+            console.log("Adding 'referral_code' and 'referred_by' to users table...");
+            db.run("ALTER TABLE users ADD COLUMN referral_code TEXT UNIQUE", (err) => {
+                if(!err) {
+                    // Generate referral codes for existing users
+                     db.all("SELECT id, username FROM users WHERE referral_code IS NULL", (err, rows) => {
+                        if (!err && rows) {
+                            rows.forEach(user => {
+                                const code = (user.username.substring(0, 3) + Math.random().toString(36).substring(2, 5)).toUpperCase();
+                                db.run("UPDATE users SET referral_code = ? WHERE id = ?", [code, user.id]);
+                            });
+                        }
+                    });
+                }
+            });
+            db.run("ALTER TABLE users ADD COLUMN referred_by INTEGER", (err) => {});
+        }
     });
 
     // 3. Buat tabel withdrawals (Penarikan)
@@ -62,6 +82,30 @@ db.serialize(() => {
         status TEXT DEFAULT 'pending', -- pending, approved, rejected
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+
+    // 3.5 Buat tabel whatsapp_sessions (Multi-device)
+    db.run(`CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        session_name TEXT,
+        session_id TEXT UNIQUE, -- Used for LocalAuth clientId
+        status TEXT DEFAULT 'disconnected', -- connected, disconnected, scanning
+        device_info TEXT, -- JSON string for pushname, wid, etc.
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+
+    // 3.6 Buat tabel referral_commissions (Riwayat Komisi)
+    db.run(`CREATE TABLE IF NOT EXISTS referral_commissions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        referrer_id INTEGER, -- Yang dapat komisi
+        referred_user_id INTEGER, -- Yang melakukan aksi (kirim pesan)
+        amount INTEGER,
+        description TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(referrer_id) REFERENCES users(id),
+        FOREIGN KEY(referred_user_id) REFERENCES users(id)
     )`);
 
     // 4. Buat tabel blast_logs (Riwayat Blast)

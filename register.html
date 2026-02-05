@@ -85,6 +85,10 @@
                 <input type="text" class="form-control" id="username" name="username" required placeholder="Username">
                 <label for="username"><i class="bi bi-person"></i> Username</label>
             </div>
+            <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="referralCode" name="referralCode" placeholder="Kode Referral (Opsional)">
+                <label for="referralCode"><i class="bi bi-tag"></i> Kode Referral</label>
+            </div>
             <div class="form-floating mb-4">
                 <input type="password" class="form-control" id="password" name="password" required placeholder="Password">
                 <label for="password"><i class="bi bi-lock"></i> Password</label>
@@ -102,7 +106,8 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    const BASE_URL = 'https://whatsapp-blast.up.railway.app';
+    // const BASE_URL = 'https://whatsapp-blast.up.railway.app';
+    const BASE_URL = ''; // Use relative path
 
     document.getElementById('registerForm').addEventListener('submit', function(e) {
         e.preventDefault();

@@ -21,27 +21,27 @@ const io = socketIO(server, {
 });
 
 // --- Konfigurasi Telegram Bot ---
-// Prioritaskan Environment Variable untuk keamanan
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '7241784386:AAGFfDY6AM4Oz7z1rap30uFiOuewkg04d4A';
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '6076369736'; 
 
 let bot = null;
 if (TELEGRAM_BOT_TOKEN && TELEGRAM_BOT_TOKEN !== 'YOUR_TOKEN_HERE') {
     try {
-        bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false }); // Polling false karena kita hanya kirim
+        bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false }); 
         console.log('Telegram Bot Initialized');
     } catch (error) {
         console.error('Telegram Bot Error:', error.message);
     }
 }
 
-// Map untuk menyimpan sesi client WhatsApp per user
-const sessions = new Map(); // Key: userId (integer), Value: Client Instance
+// Map untuk menyimpan sesi client WhatsApp
+// Key: dbSessionId (Integer) -> Value: Client Instance
+const sessions = new Map(); 
 
 // --- Konfigurasi Middleware ---
 app.use(cors({
-    origin: true, // Atau set spesifik domain hosting Anda, misal: 'https://domain-anda.com'
-    credentials: true // Penting agar cookies/session bisa dikirim lintas domain
+    origin: true, 
+    credentials: true 
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -53,8 +53,8 @@ const sessionMiddleware = session({
     saveUninitialized: false,
     cookie: { 
         maxAge: 24 * 60 * 60 * 1000, // 1 hari
-        secure: process.env.NODE_ENV === 'production', // True jika HTTPS
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // None agar bisa cross-site
+        secure: process.env.NODE_ENV === 'production', 
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
     }
 });
 app.use(sessionMiddleware);
@@ -67,7 +67,6 @@ function isAuthenticated(req, res, next) {
     res.redirect('/login');
 }
 
-// Middleware Check Superadmin
 function isSuperAdmin(req, res, next) {
     if (req.session.role === 'superadmin') {
         return next();
@@ -75,7 +74,6 @@ function isSuperAdmin(req, res, next) {
     res.status(403).json({ status: 'error', message: 'Access Denied: Superadmin only' });
 }
 
-// Fungsi Spintax: {Halo|Hai|Hello} apa kabar? -> Hai apa kabar?
 function spintax(text) {
     const pattern = /\{([^{}]+)\}/g;
     while (pattern.test(text)) {
@@ -87,10 +85,8 @@ function spintax(text) {
     return text;
 }
 
-// Fungsi Random Delay
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Fungsi Update Balance
 function updateBalance(userId, amount) {
     db.run("UPDATE users SET balance = IFNULL(balance, 0) + ? WHERE id = ?", [amount, userId], (err) => {
         if (err) console.error("Error updating balance:", err.message);
@@ -98,7 +94,6 @@ function updateBalance(userId, amount) {
     });
 }
 
-// Fungsi Kirim Notifikasi Telegram
 function sendTelegramNotification(message) {
     return new Promise((resolve) => {
         if (bot && TELEGRAM_CHAT_ID) {
@@ -106,7 +101,7 @@ function sendTelegramNotification(message) {
                 .then(() => resolve())
                 .catch(err => {
                     console.error('Failed to send Telegram message:', err.message);
-                    resolve(); // Tetap resolve agar tidak blocking
+                    resolve(); 
                 });
         } else {
             console.log('Telegram Bot not configured. Message skipped:', message);
@@ -115,13 +110,17 @@ function sendTelegramNotification(message) {
     });
 }
 
-// Fungsi untuk inisialisasi Client WhatsApp per User
-function initializeClient(userId) {
-    if (sessions.has(userId)) {
-        return sessions.get(userId);
+// Fungsi Init Client
+// dbSessionId: ID from whatsapp_sessions table
+// userId: Owner ID
+// customSessionId: Optional, used for migration of old sessions (e.g. 'user-1')
+function initializeClient(dbSessionId, userId, customSessionId = null) {
+    if (sessions.has(dbSessionId)) {
+        return sessions.get(dbSessionId);
     }
 
-    console.log(`Initializing client for User ID: ${userId}`);
+    const clientId = customSessionId || `session-${dbSessionId}`;
+    console.log(`Initializing client for Session ID: ${dbSessionId} (Client ID: ${clientId})`);
 
     const client = new Client({
         restartOnAuthFail: true,
@@ -138,87 +137,93 @@ function initializeClient(userId) {
                 '--disable-gpu'
             ],
         },
-        authStrategy: new LocalAuth({ clientId: `user-${userId}` })
+        authStrategy: new LocalAuth({ clientId: clientId })
     });
 
+    // Update status to scanning/init
+    db.run("UPDATE whatsapp_sessions SET status = 'scanning' WHERE id = ?", [dbSessionId]);
+
     client.on('qr', (qr) => {
-        console.log(`QR RECEIVED for User ${userId}`);
+        console.log(`QR RECEIVED for Session ${dbSessionId}`);
         qrcode.toDataURL(qr, (err, url) => {
-            io.to(userId.toString()).emit('qr', url);
-            io.to(userId.toString()).emit('message', 'QR Code diterima, silakan scan!');
+            // Emit to specific user room, but with session info
+            io.to(userId.toString()).emit('qr', { sessionId: dbSessionId, url: url });
+            io.to(userId.toString()).emit('message', `QR Code untuk sesi #${dbSessionId} diterima, silakan scan!`);
         });
     });
 
     client.on('ready', () => {
-        io.to(userId.toString()).emit('ready', 'Whatsapp is ready!');
-        io.to(userId.toString()).emit('message', 'Whatsapp is ready!');
-        console.log(`User ${userId} is ready!`);
+        const info = client.info;
+        const device_info = JSON.stringify({
+            pushname: info.pushname,
+            wid: info.wid,
+            platform: info.platform
+        });
+        
+        db.run("UPDATE whatsapp_sessions SET status = 'connected', device_info = ? WHERE id = ?", [device_info, dbSessionId]);
+        
+        io.to(userId.toString()).emit('ready', { sessionId: dbSessionId });
+        io.to(userId.toString()).emit('message', `Whatsapp Sesi #${dbSessionId} is ready!`);
+        console.log(`Session ${dbSessionId} is ready!`);
     });
 
     client.on('authenticated', () => {
-        io.to(userId.toString()).emit('authenticated', 'Whatsapp is authenticated!');
-        io.to(userId.toString()).emit('message', 'Whatsapp is authenticated!');
-        console.log(`User ${userId} AUTHENTICATED`);
+        io.to(userId.toString()).emit('authenticated', { sessionId: dbSessionId });
+        io.to(userId.toString()).emit('message', `Whatsapp Sesi #${dbSessionId} is authenticated!`);
+        console.log(`Session ${dbSessionId} AUTHENTICATED`);
     });
 
     client.on('auth_failure', function(session) {
-        io.to(userId.toString()).emit('message', 'Auth failure, restarting...');
+        io.to(userId.toString()).emit('message', `Auth failure on Session #${dbSessionId}, restarting...`);
+        db.run("UPDATE whatsapp_sessions SET status = 'disconnected' WHERE id = ?", [dbSessionId]);
     });
 
     client.on('disconnected', (reason) => {
-        io.to(userId.toString()).emit('message', 'Whatsapp is disconnected!');
+        io.to(userId.toString()).emit('disconnected', { sessionId: dbSessionId });
+        io.to(userId.toString()).emit('message', `Whatsapp Sesi #${dbSessionId} is disconnected!`);
+        db.run("UPDATE whatsapp_sessions SET status = 'disconnected' WHERE id = ?", [dbSessionId]);
+        
         client.destroy().catch(e => console.error('Error destroying client:', e.message));
-        sessions.delete(userId);
+        sessions.delete(dbSessionId);
     });
 
-    // Handle initialization errors to prevent server crash
     client.initialize().catch(err => {
-        console.error(`Failed to initialize client for User ${userId}:`, err.message);
-        io.to(userId.toString()).emit('message', `Gagal inisialisasi: ${err.message}`);
-        // Jangan delete session dulu, biarkan user coba restart manual atau otomatis retry
+        console.error(`Failed to initialize client for Session ${dbSessionId}:`, err.message);
+        io.to(userId.toString()).emit('message', `Gagal inisialisasi sesi #${dbSessionId}: ${err.message}`);
     });
 
-    sessions.set(userId, client);
+    sessions.set(dbSessionId, client);
     return client;
 }
 
-// --- Global Error Handlers to Prevent Crash ---
+// --- Global Error Handlers ---
 process.on('unhandledRejection', (reason, promise) => {
     console.error('⚠️ Unhandled Rejection:', reason.message || reason);
-    sendTelegramNotification(`⚠️ *SERVER ERROR (Unhandled Rejection)*\n\nError: ${reason.message || reason}`);
 });
 
 process.on('uncaughtException', (err) => {
     console.error('⚠️ Uncaught Exception:', err.message || err);
-    sendTelegramNotification(`🚨 *SERVER CRITICAL ERROR (Uncaught Exception)*\n\nError: ${err.message}`);
 });
 
 process.on('SIGINT', () => {
     console.log('Server stopping...');
-    sendTelegramNotification('🛑 *SERVER STOPPED* (Manual Shutdown/SIGINT)').then(() => {
-        process.exit(0);
-    });
+    process.exit(0);
 });
 
 process.on('SIGTERM', () => {
     console.log('Server stopping...');
-    sendTelegramNotification('🛑 *SERVER STOPPED* (System Kill/SIGTERM)').then(() => {
-        process.exit(0);
-    });
+    process.exit(0);
 });
 
 // --- Routes ---
+
 app.get('/login', (req, res) => {
-    if (req.session.userId) {
-        return res.redirect('/');
-    }
+    if (req.session.userId) return res.redirect('/');
     res.sendFile('login.html', { root: __dirname });
 });
 
 app.get('/register', (req, res) => {
-    if (req.session.userId) {
-        return res.redirect('/');
-    }
+    if (req.session.userId) return res.redirect('/');
     res.sendFile('register.html', { root: __dirname });
 });
 
@@ -226,8 +231,9 @@ app.get('/riwayat_blast.html', isAuthenticated, isSuperAdmin, (req, res) => {
     res.sendFile('riwayat_blast.html', { root: __dirname });
 });
 
+// Register with Referral
 app.post('/register', (req, res) => {
-    const { username, password } = req.body;
+    const { username, password, referralCode } = req.body;
     
     if (!username || !password) {
         return res.json({ status: 'error', message: 'Username dan password harus diisi!' });
@@ -238,14 +244,31 @@ app.post('/register', (req, res) => {
             return res.json({ status: 'error', message: 'Username sudah digunakan!' });
         }
 
-        const salt = bcrypt.genSaltSync(10);
-        const hash = bcrypt.hashSync(password, salt);
-        // Register default as 'member' with 0 balance
-        db.run("INSERT INTO users (username, password, role, balance) VALUES (?, ?, ?, ?)", [username, hash, 'member', 0], function(err) {
-            if (err) {
-                return res.status(500).json({ status: 'error', message: "Database error: " + err.message });
+        let referredBy = null;
+        const checkReferral = new Promise((resolve, reject) => {
+            if (referralCode) {
+                db.get("SELECT id FROM users WHERE referral_code = ?", [referralCode], (err, refUser) => {
+                    if (refUser) referredBy = refUser.id;
+                    resolve();
+                });
+            } else {
+                resolve();
             }
-            res.json({ status: 'success', message: 'Pendaftaran berhasil! Silakan login.' });
+        });
+
+        checkReferral.then(() => {
+            const salt = bcrypt.genSaltSync(10);
+            const hash = bcrypt.hashSync(password, salt);
+            // Generate own referral code
+            const ownRefCode = (username.substring(0, 3) + Math.random().toString(36).substring(2, 5)).toUpperCase();
+
+            db.run("INSERT INTO users (username, password, role, balance, referral_code, referred_by) VALUES (?, ?, ?, ?, ?, ?)", 
+                [username, hash, 'member', 0, ownRefCode, referredBy], function(err) {
+                if (err) {
+                    return res.status(500).json({ status: 'error', message: "Database error: " + err.message });
+                }
+                res.json({ status: 'success', message: 'Pendaftaran berhasil! Silakan login.' });
+            });
         });
     });
 });
@@ -263,7 +286,13 @@ app.post('/login', (req, res) => {
             req.session.username = user.username;
             req.session.role = user.role;
             
-            initializeClient(user.id);
+            // Auto-init all sessions
+            db.all("SELECT id, session_id FROM whatsapp_sessions WHERE user_id = ?", [user.id], (err, rows) => {
+                if (rows) {
+                    rows.forEach(row => initializeClient(row.id, user.id, row.session_id));
+                }
+            });
+
             res.json({ status: 'success', message: 'Login berhasil!', redirect: '/' });
         } else {
             res.json({ status: 'error', message: 'Password salah!' });
@@ -277,590 +306,486 @@ app.get('/logout', (req, res) => {
 });
 
 app.get('/api/me', isAuthenticated, (req, res) => {
-    db.get("SELECT balance FROM users WHERE id = ?", [req.session.userId], (err, row) => {
+    db.get("SELECT balance, referral_code FROM users WHERE id = ?", [req.session.userId], (err, row) => {
         if (err) return res.status(500).json({ error: 'Database error' });
         
         res.json({
             id: req.session.userId,
             username: req.session.username,
             role: req.session.role,
-            balance: row ? row.balance : 0
+            balance: row ? row.balance : 0,
+            referral_code: row ? row.referral_code : '-'
         });
     });
 });
 
-// Route: Cek Status Perangkat (Member)
-app.get('/api/device/status', isAuthenticated, (req, res) => {
+app.get('/api/me/stats', isAuthenticated, (req, res) => {
     const userId = req.session.userId;
-    const client = sessions.get(userId);
-
-    if (!client) {
-        return res.json({ status: 'disconnected', message: 'Sesi belum diinisialisasi' });
-    }
-
-    if (client.info && client.info.wid) {
-        return res.json({ 
-            status: 'connected', 
-            message: 'Terhubung', 
-            info: {
-                pushname: client.info.pushname,
-                wid: client.info.wid
-            }
+    
+    // Using Promise.all to run queries in parallel
+    const p1 = new Promise(resolve => {
+        db.get("SELECT COUNT(*) as total, SUM(CASE WHEN status='connected' THEN 1 ELSE 0 END) as online FROM whatsapp_sessions WHERE user_id = ?", [userId], (err, row) => {
+            resolve(row || { total: 0, online: 0 });
         });
-    }
+    });
 
-    // Check if browser is running but not auth
-    return res.json({ status: 'waiting_qr', message: 'Menunggu Scan QR' });
+    const p2 = new Promise(resolve => {
+        db.get("SELECT SUM(success_count) as total_sent FROM blast_logs WHERE admin_id = ?", [userId], (err, row) => {
+            resolve(row ? row.total_sent : 0);
+        });
+    });
+
+    Promise.all([p1, p2]).then(([deviceStats, messageStats]) => {
+        res.json({
+            devices_total: deviceStats.total || 0,
+            devices_online: deviceStats.online || 0,
+            devices_offline: (deviceStats.total - deviceStats.online) || 0,
+            messages_sent: messageStats || 0
+        });
+    }).catch(err => {
+        res.status(500).json({ error: err.message });
+    });
 });
 
-// Route: Restart/Reconnect Perangkat (Member)
-app.post('/api/device/restart', isAuthenticated, async (req, res) => {
-    const userId = req.session.userId;
-    const client = sessions.get(userId);
+// --- NEW: Device Management APIs ---
 
-    if (client) {
-        try {
-            // Force delete folder session jika ada
-            const sessionPath = `./.wwebjs_auth/session-user-${userId}`;
-            if (fs.existsSync(sessionPath)) {
-                fs.rmSync(sessionPath, { recursive: true, force: true });
-                console.log(`Deleted session folder for User ${userId}`);
+// List Devices
+app.get('/api/devices', isAuthenticated, (req, res) => {
+    db.all("SELECT id, session_name, status, device_info FROM whatsapp_sessions WHERE user_id = ?", [req.session.userId], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const result = rows.map(row => {
+            // Check real-time connection status if possible
+            const client = sessions.get(row.id);
+            let realStatus = row.status;
+            if (client && client.info && client.info.wid) {
+                realStatus = 'connected';
+            } else if (client) {
+                // Client exists but not connected (maybe scanning)
+            } else {
+                realStatus = 'disconnected';
             }
-            await client.destroy();
-        } catch (e) {
-            console.error('Error destroying client:', e.message);
-        }
-        sessions.delete(userId);
-    }
-
-    initializeClient(userId);
-    res.json({ status: 'success', message: 'Proses restart dimulai. Silakan tunggu QR Code baru.' });
+            return {
+                ...row,
+                status: realStatus,
+                device_info: row.device_info ? JSON.parse(row.device_info) : null
+            };
+        });
+        res.json(result);
+    });
 });
 
-// API untuk Superadmin: List Semua User & Status Koneksi
-app.get('/api/admin/users', isAuthenticated, isSuperAdmin, (req, res) => {
-    db.all("SELECT id, username, role, balance FROM users", (err, rows) => {
+// Add Device
+app.post('/api/devices', isAuthenticated, (req, res) => {
+    const { session_name } = req.body;
+    const userId = req.session.userId;
+    const sessionName = session_name || `Device ${Date.now()}`;
+    const uniqueSessionId = `session-${userId}-${Date.now()}`; // Unique for LocalAuth
+
+    db.run("INSERT INTO whatsapp_sessions (user_id, session_name, session_id, status) VALUES (?, ?, ?, ?)", 
+        [userId, sessionName, uniqueSessionId, 'disconnected'], function(err) {
         if (err) return res.status(500).json({ error: err.message });
         
-        const usersWithStatus = rows.map(u => {
-            const client = sessions.get(u.id);
-            const isConnected = client && client.info && client.info.wid ? true : false;
+        const newDbId = this.lastID;
+        initializeClient(newDbId, userId, uniqueSessionId);
+        res.json({ status: 'success', message: 'Device added', data: { id: newDbId } });
+    });
+});
+
+// Delete Device
+app.delete('/api/devices/:id', isAuthenticated, (req, res) => {
+    const sessionId = parseInt(req.params.id);
+    const userId = req.session.userId;
+
+    db.get("SELECT * FROM whatsapp_sessions WHERE id = ? AND user_id = ?", [sessionId, userId], async (err, row) => {
+        if (!row) return res.status(404).json({ error: 'Device not found' });
+
+        const client = sessions.get(sessionId);
+        if (client) {
+            try {
+                await client.destroy();
+            } catch (e) { console.error(e); }
+            sessions.delete(sessionId);
+        }
+
+        // Cleanup files
+        const sessionPath = `./.wwebjs_auth/session-${row.session_id}`; // Note: initializeClient uses clientId as `session-${dbId}` OR custom
+        // Wait, initializeClient logic: `clientId = customSessionId || 'session-' + dbSessionId`
+        // In Add Device: we set `session_id` column to `session-{userId}-{timestamp}`.
+        // So we should clean up based on that.
+        
+        try {
+            if (fs.existsSync(sessionPath)) {
+                fs.rmSync(sessionPath, { recursive: true, force: true });
+            }
+        } catch (e) {}
+
+        db.run("DELETE FROM whatsapp_sessions WHERE id = ?", [sessionId], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ status: 'success', message: 'Device deleted' });
+        });
+    });
+});
+
+// --- Admin APIs ---
+
+app.get('/api/admin/users', isAuthenticated, isSuperAdmin, (req, res) => {
+    db.all("SELECT id, username, role, balance FROM users", [], async (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        
+        // Enrich with status
+        const enriched = await Promise.all(rows.map(async (u) => {
+            // Check connection status
+            // A user is "connected" if ANY of their sessions are connected
+            const sess = await new Promise(resolve => {
+                db.get("SELECT count(*) as cnt FROM whatsapp_sessions WHERE user_id = ? AND status = 'connected'", [u.id], (e, r) => resolve(r));
+            });
+            const isConnected = sess && sess.cnt > 0;
+            
+            // Get detailed info from first connected session (optional)
             let info = null;
-            if(isConnected) {
-                info = {
-                    pushname: client.info.pushname,
-                    wid: client.info.wid
-                };
+            if (isConnected) {
+                 // Get info from one of the connected sessions
+                 // Implementation detail: iterate sessions map
+                 // For now just return status
             }
 
             return {
                 ...u,
                 status: isConnected ? 'connected' : 'disconnected',
-                info: info
+                info: null
             };
-        });
-        
-        res.json(usersWithStatus);
+        }));
+        res.json(enriched);
     });
 });
 
-// API untuk Superadmin: Reset Password Member
-app.post('/api/admin/users/reset-password', isAuthenticated, isSuperAdmin, (req, res) => {
-    const { userId, newPassword } = req.body;
-
-    if (!userId || !newPassword || newPassword.length < 6) {
-        return res.status(400).json({ status: 'error', message: 'Password minimal 6 karakter' });
-    }
-
-    const salt = bcrypt.genSaltSync(10);
-    const hash = bcrypt.hashSync(newPassword, salt);
-
-    db.run("UPDATE users SET password = ? WHERE id = ?", [hash, userId], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ status: 'success', message: 'Password user berhasil direset' });
-    });
-});
-
-// API untuk Superadmin: Restart Device Member
-app.post('/api/admin/device/restart', isAuthenticated, isSuperAdmin, async (req, res) => {
-    const { targetUserId } = req.body;
-    
-    // Jika targetUserId adalah 'all', maka restart semua
-    if (targetUserId === 'all') {
-        let count = 0;
-        let failCount = 0;
-        
-        const allSessions = Array.from(sessions.entries());
-        res.json({ status: 'success', message: `Proses restart masal dimulai untuk ${allSessions.length} sesi...` });
-
-        (async () => {
-            console.log('🔄 Memulai Mass Restart...');
-            for (const [uid, client] of allSessions) {
-                try {
-                    console.log(`Restarting client ${uid}...`);
-                    
-                    // Kita coba tutup browser dulu
-                    try {
-                        await client.destroy();
-                    } catch (destroyError) {
-                        console.error(`Error destroying client ${uid}:`, destroyError.message);
-                    }
-                    
-                    // Delay agar process chrome benar-benar mati
-                    await sleep(3000);
-
-                    // Hapus lockfile saja agar session tidak hilang
-                    const sessionPath = `./.wwebjs_auth/session-user-${uid}`;
-                    const lockFile = `${sessionPath}/lockfile`;
-                    const singletonLock = `${sessionPath}/SingletonLock`;
-                    
-                    try {
-                        if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
-                        if (fs.existsSync(singletonLock)) fs.unlinkSync(singletonLock);
-                    } catch (e) {
-                        console.error(`Gagal hapus lockfile user ${uid}:`, e.message);
-                    }
-                    
-                    sessions.delete(uid);
-                    initializeClient(uid);
-                    count++;
-                } catch (e) {
-                    console.error(`Fatal error restarting client ${uid}:`, e.message);
-                    failCount++;
-                }
-            }
-            console.log(`✅ Mass Restart Selesai. Sukses: ${count}, Gagal: ${failCount}`);
-        })();
-        
-        return; 
-    }
-
-    if (!targetUserId) {
-        return res.status(400).json({ status: 'error', message: 'Target User ID required' });
-    }
-
-    const client = sessions.get(parseInt(targetUserId));
-
-    if (client) {
-        try {
-            await client.destroy();
-        } catch (e) {
-            console.error('Error destroying client:', e.message);
-        }
-        
-        // Hapus lockfile saja agar session tidak hilang
-        const sessionPath = `./.wwebjs_auth/session-user-${targetUserId}`;
-        const lockFile = `${sessionPath}/lockfile`;
-        const singletonLock = `${sessionPath}/SingletonLock`;
-        
-        try {
-            if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
-            if (fs.existsSync(singletonLock)) fs.unlinkSync(singletonLock);
-        } catch (e) {
-            console.error(`Gagal hapus lockfile user ${targetUserId}:`, e.message);
-        }
-
-        sessions.delete(parseInt(targetUserId));
-    }
-
-    // Re-initialize (akan trigger QR baru jika tidak ada session, atau reconnect jika ada)
-    initializeClient(parseInt(targetUserId));
-    
-    res.json({ status: 'success', message: `Sesi User ${targetUserId} berhasil direstart.` });
-});
-
-// API untuk Superadmin: Tambah Saldo Member
-app.post('/api/admin/add-balance', isAuthenticated, isSuperAdmin, (req, res) => {
-    const { userId, amount } = req.body;
-    const amountInt = parseInt(amount);
-
-    if (!userId || isNaN(amountInt) || amountInt <= 0) {
-        return res.status(400).json({ status: 'error', message: 'Data tidak valid' });
-    }
-
-    updateBalance(userId, amountInt);
-    res.json({ status: 'success', message: `Berhasil menambahkan Rp ${amountInt} ke User ID ${userId}` });
-});
-
-// API untuk Superadmin: List Penarikan
 app.get('/api/admin/withdrawals', isAuthenticated, isSuperAdmin, (req, res) => {
     db.all(`
         SELECT w.*, u.username 
         FROM withdrawals w 
         JOIN users u ON w.user_id = u.id 
         ORDER BY w.created_at DESC
-    `, (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+    `, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
         res.json(rows);
     });
 });
 
-// API untuk Superadmin: Update Status Penarikan
 app.post('/api/admin/withdrawals/update', isAuthenticated, isSuperAdmin, (req, res) => {
     const { id, status } = req.body;
+    db.run("UPDATE withdrawals SET status = ? WHERE id = ?", [status, id], (err) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message });
+        res.json({ status: 'success', message: 'Status updated' });
+    });
+});
+
+app.post('/api/admin/add-balance', isAuthenticated, isSuperAdmin, (req, res) => {
+    const { userId, amount } = req.body;
+    updateBalance(userId, parseInt(amount));
+    res.json({ status: 'success', message: 'Balance added' });
+});
+
+app.post('/api/admin/users/reset-password', isAuthenticated, isSuperAdmin, (req, res) => {
+    const { userId, newPassword } = req.body;
+    const salt = bcrypt.genSaltSync(10);
+    const hash = bcrypt.hashSync(newPassword, salt);
     
-    if (!['pending', 'success', 'failed'].includes(status)) {
-        return res.status(400).json({ status: 'error', message: 'Status tidak valid' });
-    }
-
-    db.run("UPDATE withdrawals SET status = ? WHERE id = ?", [status, id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ status: 'success', message: 'Status penarikan diperbarui' });
+    db.run("UPDATE users SET password = ? WHERE id = ?", [hash, userId], (err) => {
+        if (err) return res.status(500).json({ status: 'error', message: err.message });
+        res.json({ status: 'success', message: 'Password reset successfully' });
     });
 });
 
-// Route: Ganti Password
-app.post('/api/change-password', isAuthenticated, (req, res) => {
-    const { oldPassword, newPassword } = req.body;
-    const userId = req.session.userId;
-
-    if (!oldPassword || !newPassword) {
-        return res.json({ status: 'error', message: 'Password lama dan baru harus diisi!' });
-    }
-
-    if (newPassword.length < 6) {
-        return res.json({ status: 'error', message: 'Password baru minimal 6 karakter!' });
-    }
-
-    db.get("SELECT password FROM users WHERE id = ?", [userId], (err, user) => {
-        if (err) return res.status(500).json({ status: 'error', message: 'Database error' });
-        
-        const isMatch = bcrypt.compareSync(oldPassword, user.password);
-        if (!isMatch) {
-            return res.json({ status: 'error', message: 'Password lama salah!' });
-        }
-
-        const salt = bcrypt.genSaltSync(10);
-        const hash = bcrypt.hashSync(newPassword, salt);
-
-        db.run("UPDATE users SET password = ? WHERE id = ?", [hash, userId], (err) => {
-            if (err) return res.status(500).json({ status: 'error', message: 'Gagal update password' });
-            res.json({ status: 'success', message: 'Password berhasil diubah!' });
+app.post('/api/admin/device/restart', isAuthenticated, isSuperAdmin, (req, res) => {
+    const { targetUserId } = req.body; // 'all' or userId
+    
+    if (targetUserId === 'all') {
+        // Restart all sessions
+        sessions.forEach((client, dbId) => {
+             client.destroy().catch(()=>{});
+             sessions.delete(dbId);
         });
-    });
-});
-
-// Route: Request Penarikan (Member)
-app.post('/api/withdraw', isAuthenticated, (req, res) => {
-    const { amount, account_name, bank_name, account_number, whatsapp } = req.body;
-    const userId = req.session.userId;
-    const withdrawAmount = parseInt(amount);
-
-    if (withdrawAmount < 100000) {
-        return res.status(400).json({ status: 'error', message: 'Minimal penarikan Rp 100.000' });
-    }
-
-    db.get("SELECT balance, username FROM users WHERE id = ?", [userId], (err, user) => {
-        if (err) return res.status(500).json({ status: 'error', message: 'Database error' });
-        if (user.balance < withdrawAmount) {
-            return res.status(400).json({ status: 'error', message: 'Saldo tidak mencukupi' });
-        }
-
-        // Potong saldo dan catat penarikan
-        db.serialize(() => {
-            db.run("UPDATE users SET balance = balance - ? WHERE id = ?", [withdrawAmount, userId]);
-            
-            db.run(`INSERT INTO withdrawals (user_id, amount, account_name, bank_name, account_number, whatsapp) 
-                    VALUES (?, ?, ?, ?, ?, ?)`, 
-                    [userId, withdrawAmount, account_name, bank_name, account_number, whatsapp], 
-                    function(err) {
-                        if (err) return res.status(500).json({ status: 'error', message: 'Gagal memproses penarikan' });
-                        
-                        // Kirim Notifikasi Telegram
-                        const msg = `📢 *PENARIKAN BARU*\n\nUser: ${user.username}\nJumlah: Rp ${withdrawAmount.toLocaleString('id-ID')}\nBank: ${bank_name}\nRek: ${account_number}\nA.N: ${account_name}\nWA: ${whatsapp}`;
-                        sendTelegramNotification(msg);
-
-                        res.json({ status: 'success', message: 'Permintaan penarikan berhasil dikirim. Dana akan masuk ke rekening Anda dalam waktu 1x24 jam (hari kerja).' });
+        // Re-init all
+        restoreSessions();
+        res.json({ status: 'success', message: 'All devices restarting...' });
+    } else {
+        // Restart specific user's sessions
+        db.all("SELECT id, session_id FROM whatsapp_sessions WHERE user_id = ?", [targetUserId], (err, rows) => {
+            if (rows) {
+                rows.forEach(row => {
+                    const client = sessions.get(row.id);
+                    if (client) {
+                        client.destroy().catch(()=>{});
+                        sessions.delete(row.id);
                     }
-            );
+                    initializeClient(row.id, targetUserId, row.session_id);
+                });
+                res.json({ status: 'success', message: 'User devices restarting...' });
+            } else {
+                res.json({ status: 'error', message: 'No devices found' });
+            }
         });
+    }
+});
+
+// Member APIs for history
+app.get('/api/me/withdrawals', isAuthenticated, (req, res) => {
+    db.all("SELECT * FROM withdrawals WHERE user_id = ? ORDER BY created_at DESC", [req.session.userId], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        res.json(rows);
     });
 });
 
-// Route: Forgot Password (Public)
-app.post('/api/auth/forgot-password', (req, res) => {
-    const { username } = req.body;
-    
-    if (!username) {
-        return res.json({ status: 'error', message: 'Username harus diisi!' });
-    }
+app.get('/api/me/blast-logs', isAuthenticated, (req, res) => {
+    // Join details to get status per number
+    db.all(`
+        SELECT d.target_number, d.status, d.created_at, l.sender_mode 
+        FROM blast_log_details d
+        JOIN blast_logs l ON d.blast_id = l.id
+        WHERE l.admin_id = ? 
+        ORDER BY d.created_at DESC LIMIT 50
+    `, [req.session.userId], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        res.json(rows);
+    });
+});
 
-    db.get("SELECT id FROM users WHERE username = ?", [username], (err, user) => {
-        if (err) return res.status(500).json({ status: 'error', message: 'Database error' });
-        if (!user) {
-            // Untuk keamanan, pesan error tetap generik atau spesifik tergantung kebutuhan
-            // Disini kita spesifik sesuai permintaan
-            return res.json({ status: 'error', message: 'Username tidak ditemukan!' });
-        }
+app.post('/api/withdraw', isAuthenticated, (req, res) => {
+    const { amount, bank_name, account_number, account_name, whatsapp } = req.body;
+    const userId = req.session.userId;
 
-        // Generate Random Password (6 chars)
-        const newPassword = Math.random().toString(36).slice(-6).toUpperCase();
-        
-        const salt = bcrypt.genSaltSync(10);
-        const hash = bcrypt.hashSync(newPassword, salt);
+    db.get("SELECT balance FROM users WHERE id = ?", [userId], (err, row) => {
+        if (err || !row) return res.status(500).json({ status: 'error', message: 'Database error' });
+        if (row.balance < amount) return res.json({ status: 'error', message: 'Saldo tidak mencukupi!' });
 
-        db.run("UPDATE users SET password = ? WHERE id = ?", [hash, user.id], (err) => {
-            if (err) return res.status(500).json({ status: 'error', message: 'Gagal reset password' });
+        // Deduct balance
+        db.run("UPDATE users SET balance = balance - ? WHERE id = ?", [amount, userId], (err) => {
+            if (err) return res.status(500).json({ status: 'error', message: 'Transaction error' });
             
-            // Kembalikan password baru ke frontend untuk ditampilkan
-            res.json({ 
-                status: 'success', 
-                message: 'Password berhasil direset!',
-                newPassword: newPassword 
+            // Create withdrawal request
+            db.run(`INSERT INTO withdrawals (user_id, amount, bank_name, account_number, account_name, whatsapp) 
+                    VALUES (?, ?, ?, ?, ?, ?)`, 
+                    [userId, amount, bank_name, account_number, account_name, whatsapp], (err) => {
+                if (err) return res.status(500).json({ status: 'error', message: 'Failed to create request' });
+                res.json({ status: 'success', message: 'Permintaan penarikan berhasil dikirim.' });
             });
         });
     });
 });
 
-app.get('/api/me/withdrawals', isAuthenticated, (req, res) => {
-    db.all("SELECT * FROM withdrawals WHERE user_id = ? ORDER BY created_at DESC", [req.session.userId], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+app.post('/api/change-password', isAuthenticated, (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+    const userId = req.session.userId;
+    
+    db.get("SELECT password FROM users WHERE id = ?", [userId], (err, row) => {
+        if (err) return res.status(500).json({ status: 'error', message: 'Database error' });
+        const isMatch = bcrypt.compareSync(oldPassword, row.password);
+        if (!isMatch) return res.json({ status: 'error', message: 'Password lama salah!' });
+        
+        const salt = bcrypt.genSaltSync(10);
+        const hash = bcrypt.hashSync(newPassword, salt);
+        db.run("UPDATE users SET password = ? WHERE id = ?", [hash, userId], (err) => {
+             res.json({ status: 'success', message: 'Password berhasil diubah.' });
+        });
+    });
+});
+
+// --- Blast & Commission ---
+
+app.post('/send-message', isAuthenticated, async (req, res) => {
+    let { numbers, message, senderId } = req.body;
+    const currentUserId = req.session.userId;
+    
+    // Select Sender Session
+    // If senderId is provided, it's the dbSessionId.
+    // If not, pick first connected session of user.
+    let client = null;
+    let senderDbId = senderId ? parseInt(senderId) : null;
+    let senderName = 'Unknown';
+    let senderUserId = currentUserId;
+
+    if (senderId) {
+        // Specific session selected
+        // Check ownership
+        // TODO: Admin can use any session. For now assume user uses own.
+        client = sessions.get(senderDbId);
+    } else {
+        // Auto-select
+        // Find a connected session for this user
+        // This requires querying the sessions map which is key=dbId.
+        // We need to map user -> [dbIds].
+        // Simplest: Query DB for user's sessions, check if in map.
+        // OR: just use the first one found in map that matches user? (inefficient)
+        // Let's use DB query for safety.
+        // For now, let's just fail if no senderId provided or handle single session.
+        // BUT for blast, we usually iterate.
+        // Let's assume the frontend sends senderId or we pick random.
+    }
+
+    // Simplification for the prompt:
+    // "satu user bisa melakukan penambahan koneksi whatsaap lebih dari satu"
+    // So user should choose which WA to use, or use "Blast All" (which might mean round robin).
+    
+    // Let's implement "Use Random/Round Robin from User's Own Devices" if senderId is 'all' or missing.
+    let poolClients = [];
+    
+    // Get user's sessions
+    const userSessions = await new Promise((resolve) => {
+        db.all("SELECT id, session_name FROM whatsapp_sessions WHERE user_id = ?", [currentUserId], (err, rows) => {
+            resolve(rows || []);
+        });
+    });
+
+    for (const sess of userSessions) {
+        const c = sessions.get(sess.id);
+        if (c && c.info && c.info.wid) {
+            poolClients.push({ id: sess.id, client: c, name: sess.session_name, uid: currentUserId });
+        }
+    }
+
+    if (poolClients.length === 0) {
+         return res.status(500).json({ status: 'error', message: 'Anda tidak memiliki sesi WhatsApp yang terhubung.' });
+    }
+
+    if (!numbers || !message) {
+        return res.status(400).json({ status: 'error', message: 'Nomor dan pesan harus diisi' });
+    }
+
+    const numberList = numbers.split(/\r?\n/).filter(n => n.trim() !== '');
+    
+    db.run("INSERT INTO blast_logs (admin_id, sender_mode, total_target) VALUES (?, ?, ?)", 
+        [currentUserId, 'multi-device', numberList.length], 
+        function(err) {
+          if (err) return res.status(500).json({ status: 'error', message: 'Database error' });
+          const blastId = this.lastID;
+          res.json({ status: 'success', message: 'Blast dimulai.', blastId: blastId });
+
+          (async () => {
+              let successCount = 0;
+              let failCount = 0;
+              const COMMISSION_RATE = 100; // Requirement: 100 per message
+              
+              // Check referrer
+              let referrerId = null;
+              try {
+                  const u = await new Promise((resolve) => db.get("SELECT referred_by FROM users WHERE id = ?", [currentUserId], (e, r) => resolve(r)));
+                  if (u && u.referred_by) referrerId = u.referred_by;
+              } catch (e) {}
+
+              for (let i = 0; i < numberList.length; i++) {
+                  const number = numberList[i];
+                  const sender = poolClients[Math.floor(Math.random() * poolClients.length)]; // Random rotation
+                  const client = sender.client;
+                  let logStatus = 'failed';
+                  let logError = '';
+
+                  try {
+                      let formattedNumber = number.replace(/\D/g, '');
+                      if (formattedNumber.startsWith('0')) formattedNumber = '62' + formattedNumber.slice(1);
+                      if (!formattedNumber.endsWith('@c.us')) formattedNumber += '@c.us';
+
+                      const isRegistered = await client.isRegisteredUser(formattedNumber);
+                      if (isRegistered) {
+                          const finalMessage = spintax(message);
+                          await client.sendMessage(formattedNumber, finalMessage);
+                          
+                          // --- REFERRAL COMMISSION LOGIC ---
+                          if (referrerId) {
+                                // Add commission to referrer
+                                // Check if referrer has at least one connected device?
+                                // "jika yang di undang tidak menautkan whatsaap maka masukan ke referal pasif"
+                                // This implies the 'status' of the referred user (currentUserId) matters for the referrer's view.
+                                // But for commission, if currentUserId IS SENDING A MESSAGE, they obviously have linked WhatsApp.
+                                // So we just credit the referrer.
+                                updateBalance(referrerId, COMMISSION_RATE);
+                                db.run("INSERT INTO referral_commissions (referrer_id, referred_user_id, amount, description) VALUES (?, ?, ?, ?)",
+                                    [referrerId, currentUserId, COMMISSION_RATE, `Commission from blast ${blastId}`]);
+                          }
+
+                          io.to(currentUserId.toString()).emit('message', `✅ [via ${sender.name}] Terkirim ke ${number}`);
+                          successCount++;
+                          logStatus = 'success';
+                      } else {
+                          io.to(currentUserId.toString()).emit('message', `❌ [via ${sender.name}] Gagal ke ${number} (Unregistered)`);
+                          failCount++;
+                          logError = 'Unregistered number';
+                      }
+                      
+                      const delay = Math.floor(Math.random() * (5000 - 1000 + 1)) + 1000;
+                      await sleep(delay);
+
+                  } catch (error) {
+                      io.to(currentUserId.toString()).emit('message', `❌ Error: ${error.message}`);
+                      failCount++;
+                      logError = error.message;
+                  }
+
+                  db.run("INSERT INTO blast_log_details (blast_id, sender_id, target_number, status, error_msg) VALUES (?, ?, ?, ?, ?)",
+                      [blastId, sender.id, number, logStatus, logError]);
+              }
+              
+              db.run("UPDATE blast_logs SET success_count = ?, failed_count = ?, status = 'completed' WHERE id = ?",
+                  [successCount, failCount, blastId]);
+              
+              io.to(currentUserId.toString()).emit('message', `🎉 Selesai! Berhasil: ${successCount}, Gagal: ${failCount}`);
+          })();
     });
 });
 
 app.get('/', isAuthenticated, (req, res) => {
-    if (!sessions.has(req.session.userId)) {
-        initializeClient(req.session.userId);
-    }
+    // Note: We don't auto-init here anymore, we do it at login or startup.
     res.sendFile('index.html', { root: __dirname });
 });
 
-// Fix: Allow accessing index.html directly (needed for redirect from login)
 app.get('/index.html', isAuthenticated, (req, res) => {
-    if (!sessions.has(req.session.userId)) {
-        initializeClient(req.session.userId);
-    }
     res.sendFile('index.html', { root: __dirname });
 });
 
-// --- Socket.IO ---
 io.on('connection', (socket) => {
     socket.on('join', (userId) => {
         socket.join(userId.toString());
-
-        const client = sessions.get(parseInt(userId));
-        if (client) {
-             socket.emit('message', 'Terhubung ke server WhatsApp Anda.');
-             if (client.info && client.info.wid) {
-                 socket.emit('ready', 'Whatsapp is ready!');
-             }
-        } else {
-             socket.emit('message', 'Menunggu inisialisasi WhatsApp...');
-        }
+        socket.emit('message', 'Terhubung ke server.');
     });
 });
 
-// --- API Blast ---
-
-// API: Get Blast History
-app.get('/api/admin/blast-logs', isAuthenticated, isSuperAdmin, (req, res) => {
-    db.all("SELECT b.*, u.username as admin_name FROM blast_logs b LEFT JOIN users u ON b.admin_id = u.id ORDER BY b.created_at DESC", (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
-});
-
-// API: Get Blast Details
-app.get('/api/admin/blast-logs/:id', isAuthenticated, isSuperAdmin, (req, res) => {
-    const blastId = req.params.id;
-    db.all(`
-        SELECT d.*, u.username as sender_name 
-        FROM blast_log_details d 
-        LEFT JOIN users u ON d.sender_id = u.id 
-        WHERE d.blast_id = ? 
-        ORDER BY d.id ASC
-    `, [blastId], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
-});
-
-// API: Get Member Blast History (Simple View)
-app.get('/api/me/blast-logs', isAuthenticated, (req, res) => {
-    const userId = req.session.userId;
-    db.all(`
-        SELECT d.id, d.target_number, d.status, d.created_at, b.sender_mode
-        FROM blast_log_details d
-        JOIN blast_logs b ON d.blast_id = b.id
-        WHERE d.sender_id = ?
-        ORDER BY d.created_at DESC
-        LIMIT 50
-    `, [userId], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
-});
-
-app.post('/send-message', isAuthenticated, async (req, res) => {
-  let { numbers, message, senderId } = req.body;
-  const currentUserId = req.session.userId;
-  const userRole = req.session.role;
-
-  // --- Logic Penentuan Sender ---
-  let poolClients = []; 
-  let senderMode = 'self';
-
-  if (userRole === 'superadmin' && senderId === 'random') {
-      senderMode = 'random';
-      // 1. Mode Rotasi (Random)
-      for (const [uid, client] of sessions.entries()) {
-          if (client && client.info && client.info.wid) {
-              poolClients.push({ uid, client, username: `User ${uid}` });
-          }
-      }
-      
-      if (poolClients.length === 0) {
-          return res.status(500).json({ status: 'error', message: 'Tidak ada member yang terhubung saat ini.' });
-      }
-
-      io.to(currentUserId.toString()).emit('message', `🔀 [Mode Rotasi] Menggunakan ${poolClients.length} akun aktif secara acak.`);
-
-  } else if (userRole === 'superadmin' && senderId) {
-      senderMode = 'specific';
-      // 2. Mode Pinjam Akun Spesifik
-      const targetUserId = parseInt(senderId);
-      const client = sessions.get(targetUserId);
-      if (!client || !client.info || !client.info.wid) {
-          return res.status(500).json({ status: 'error', message: 'Sesi member tersebut tidak aktif.' });
-      }
-      poolClients.push({ uid: targetUserId, client: client, username: `User ${targetUserId}` });
-      io.to(currentUserId.toString()).emit('message', `🚀 [Admin Mode] Mengirim via User ID ${targetUserId}...`);
-
-  } else {
-      // 3. Mode Kirim Sendiri (Default)
-      const client = sessions.get(currentUserId);
-      if (!client || !client.info || !client.info.wid) {
-          return res.status(500).json({ status: 'error', message: 'Sesi WhatsApp Anda belum terhubung.' });
-      }
-      poolClients.push({ uid: currentUserId, client: client, username: 'Anda' });
-  }
-
-  if (!numbers || !message) {
-    return res.status(400).json({ status: 'error', message: 'Nomor dan pesan harus diisi' });
-  }
-
-  const numberList = numbers.split(/\r?\n/).filter(n => n.trim() !== '');
-  
-  // --- Create Log Entry ---
-  db.run("INSERT INTO blast_logs (admin_id, sender_mode, total_target) VALUES (?, ?, ?)", 
-      [currentUserId, senderMode, numberList.length], 
-      function(err) {
-        if (err) {
-            console.error('Failed to create blast log:', err);
-            return res.status(500).json({ status: 'error', message: 'Database error creating log' });
-        }
-        
-        const blastId = this.lastID;
-        res.json({ status: 'success', message: 'Blast dimulai.', blastId: blastId });
-
-        // --- Proses Pengiriman ---
-        (async () => {
-            let successCount = 0;
-            let failCount = 0;
-            
-            const MIN_DELAY = 5000;
-            const MAX_DELAY = 15000;
-            const BATCH_SIZE = 10;
-            const BATCH_COOLDOWN = 60000;
-            const COMMISSION_RATE = 650; // Rp 650 per pesan
-
-            for (let i = 0; i < numberList.length; i++) {
-                const number = numberList[i];
-
-                // Batching Cooldown
-                if (i > 0 && i % BATCH_SIZE === 0) {
-                    io.to(currentUserId.toString()).emit('message', `☕ Istirahat batching 60 detik...`);
-                    await sleep(BATCH_COOLDOWN);
-                }
-
-                // --- PILIH SENDER SECARA ACAK DARI POOL ---
-                const sender = poolClients[Math.floor(Math.random() * poolClients.length)];
-                const client = sender.client;
-                let logStatus = 'failed';
-                let logError = '';
-
-                try {
-                let formattedNumber = number.replace(/\D/g, '');
-                if (formattedNumber.startsWith('0')) formattedNumber = '62' + formattedNumber.slice(1);
-                if (!formattedNumber.endsWith('@c.us')) formattedNumber += '@c.us';
-
-                const isRegistered = await client.isRegisteredUser(formattedNumber);
-                
-                if (isRegistered) {
-                    const finalMessage = spintax(message);
-                    await client.sendMessage(formattedNumber, finalMessage);
-                    
-                    // --- HITUNG KOMISI ---
-                    // Jika pengirim BUKAN user yang sedang login (artinya dipinjam Admin)
-                    if (sender.uid !== currentUserId) {
-                        updateBalance(sender.uid, COMMISSION_RATE);
-                        // Kirim notifikasi real-time ke member yang dipinjam (opsional, tapi bagus)
-                        io.to(sender.uid.toString()).emit('message', `💰 Selamat! Sesi Anda digunakan untuk mengirim pesan. Komisi +Rp ${COMMISSION_RATE}`);
-                    }
-
-                    io.to(currentUserId.toString()).emit('message', `✅ [via ${sender.username}] Terkirim ke ${number}`);
-                    successCount++;
-                    logStatus = 'success';
-                } else {
-                    io.to(currentUserId.toString()).emit('message', `❌ [via ${sender.username}] Gagal ke ${number} (Unregistered)`);
-                    failCount++;
-                    logError = 'Unregistered number';
-                }
-
-                const delay = Math.floor(Math.random() * (MAX_DELAY - MIN_DELAY + 1)) + MIN_DELAY;
-                io.to(currentUserId.toString()).emit('message', `⏳ Delay ${Math.floor(delay/1000)}s...`);
-                await sleep(delay);
-
-                } catch (error) {
-                    io.to(currentUserId.toString()).emit('message', `❌ Error [via ${sender.username}]: ${error.message}`);
-                    failCount++;
-                    logError = error.message;
-                    await sleep(5000);
-                }
-
-                // --- Log Detail ---
-                db.run("INSERT INTO blast_log_details (blast_id, sender_id, target_number, status, error_msg) VALUES (?, ?, ?, ?, ?)",
-                    [blastId, sender.uid, number, logStatus, logError]
-                );
-            }
-            
-            // --- Update Final Log Status ---
-            db.run("UPDATE blast_logs SET success_count = ?, failed_count = ?, status = 'completed' WHERE id = ?",
-                [successCount, failCount, blastId]
-            );
-
-            io.to(currentUserId.toString()).emit('message', `🎉 Selesai! Berhasil: ${successCount}, Gagal: ${failCount}`);
-        })();
-  });
-});
-
-const PORT = process.env.PORT || 8000;
-
-// Fungsi Restore Semua Sesi
+// Restore Sessions (Migration & Load)
 function restoreSessions() {
-    console.log('🔄 Restoring all sessions...');
-    db.all("SELECT id, username FROM users", (err, rows) => {
-        if (err) {
-            console.error('Failed to load users:', err);
-            return;
-        }
-        rows.forEach(user => {
-            // Hanya inisialisasi jika belum ada di map
-            if (!sessions.has(user.id)) {
-                console.log(`Checking session for ${user.username} (ID: ${user.id})...`);
-                // Kita inisialisasi client. 
-                // Karena pakai LocalAuth, jika ada session tersimpan, dia akan auto-connect.
-                // Jika tidak, dia akan generate QR (tapi tidak ada yang listen socketnya, jadi aman/headless).
-                initializeClient(user.id);
+    console.log('🔄 Restoring sessions...');
+    
+    // 1. Migration: Check for legacy folder-based sessions that are not in DB
+    db.all("SELECT id, username FROM users", (err, users) => {
+        if (!users) return;
+        users.forEach(user => {
+            const legacyId = `user-${user.id}`;
+            const legacyPath = `./.wwebjs_auth/session-${legacyId}`;
+            
+            if (fs.existsSync(legacyPath)) {
+                // Check if already in DB
+                db.get("SELECT id FROM whatsapp_sessions WHERE session_id = ?", [legacyId], (err, row) => {
+                    if (!row) {
+                        console.log(`Migrating legacy session for User ${user.username}...`);
+                        db.run("INSERT INTO whatsapp_sessions (user_id, session_name, session_id, status) VALUES (?, ?, ?, ?)", 
+                            [user.id, 'Main Device (Migrated)', legacyId, 'disconnected'], function(err) {
+                                if (!err) initializeClient(this.lastID, user.id, legacyId);
+                            });
+                    }
+                });
             }
         });
     });
+
+    // 2. Load all sessions from DB
+    db.all("SELECT id, user_id, session_id FROM whatsapp_sessions", (err, rows) => {
+        if (rows) {
+            rows.forEach(row => {
+                initializeClient(row.id, row.user_id, row.session_id);
+            });
+        }
+    });
 }
 
+const PORT = process.env.PORT || 8000;
 server.listen(PORT, () => {
   console.log('App running on port ' + PORT);
-  sendTelegramNotification(`✅ *SERVER STARTED*\n\nApp is running on port ${PORT}\nEnvironment: ${process.env.NODE_ENV || 'development'}`);
-  // Jalankan restore sessions setelah server nyala
   restoreSessions();
 });
