@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat Blast - WA Blast Pro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --primary-gradient: linear-gradient(135deg, #004e00, #004e04);
+            --dark-gradient: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+        }
+        body {
+            overflow-x: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+        }
+        
+        #wrapper {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #sidebar-wrapper {
+            min-height: 100vh;
+            width: var(--sidebar-width);
+            margin-left: 0;
+            background: var(--dark-gradient);
+            color: white;
+            transition: margin 0.25s ease-out;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        #sidebar-wrapper .sidebar-heading {
+            padding: 1.5rem 1.25rem;
+            font-size: 1.4rem;
+            font-weight: bold;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.1);
+        }
+        #sidebar-wrapper .list-group {
+            width: var(--sidebar-width);
+            padding: 10px;
+        }
+        #sidebar-wrapper .list-group-item {
+            background-color: transparent;
+            color: rgba(255,255,255,0.8);
+            border: none;
+            padding: 12px 20px;
+            margin-bottom: 5px;
+            border-radius: 10px;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        #sidebar-wrapper .list-group-item:hover {
+            background-color: rgba(255,255,255,0.1);
+            color: #fff;
+            padding-left: 25px;
+        }
+        #sidebar-wrapper .list-group-item.active {
+            background: var(--primary-gradient);
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        
+        #page-content-wrapper {
+            flex: 1;
+            width: 100%;
+            overflow-y: auto;
+            background: #f3f4f6;
+        }
+
+        .navbar-custom {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 15px 20px;
+        }
+
+        /* Card Styles for Desktop Table */
+        .card-custom {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+            background: white;
+            margin-bottom: 25px;
+        }
+        
+        /* Mobile List Card Styles */
+        .blast-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            border: 1px solid rgba(0,0,0,0.02);
+            transition: transform 0.2s;
+        }
+        .blast-card:active {
+            transform: scale(0.98);
+        }
+        .blast-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px dashed #eee;
+        }
+        .blast-card-date {
+            font-size: 0.8rem;
+            color: #95a5a6;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .blast-card-body {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .blast-info-row {
+            margin-bottom: 8px;
+        }
+        .blast-info-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #95a5a6;
+            margin-bottom: 2px;
+        }
+        .blast-info-value {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.95rem;
+        }
+        .blast-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .stat-item {
+            flex: 1;
+            text-align: center;
+        }
+        .stat-val {
+            font-weight: 700;
+            font-size: 1.1rem;
+            line-height: 1;
+        }
+        .stat-lbl {
+            font-size: 0.7rem;
+            color: #7f8c8d;
+            margin-top: 4px;
+        }
+
+        /* Status Badges */
+        .badge-running { background: #fff3cd; color: #856404; }
+        .badge-completed { background: #d1e7dd; color: #0f5132; }
+
+        .table-custom th {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            color: #6c757d;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .table-custom td {
+            vertical-align: middle;
+            font-size: 0.95rem;
+        }
+
+        /* Skeleton Loader */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Mobile Toggle */
+        @media (max-width: 768px) {
+            #sidebar-wrapper {
+                margin-left: calc(-1 * var(--sidebar-width));
+                position: fixed;
+                height: 100%;
+            }
+            #wrapper.toggled #sidebar-wrapper {
+                margin-left: 0;
+            }
+            .navbar-custom {
+                padding: 10px;
+            }
+            .page-title {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="wrapper">
+    <!-- Sidebar -->
+    <div id="sidebar-wrapper">
+        <div class="sidebar-heading text-center">
+            <i class="bi bi-whatsapp"></i> WA Blast Pro
+        </div>
+        <div class="list-group list-group-flush mt-3">
+            <a href="/" class="list-group-item list-group-item-action">
+                <i class="bi bi-speedometer2 me-2"></i> Dashboard
+            </a>
+            <a href="/#admin" class="list-group-item list-group-item-action">
+                <i class="bi bi-shield-lock me-2"></i> Admin Panel
+            </a>
+            <a href="/riwayat_blast.html" class="list-group-item list-group-item-action active">
+                <i class="bi bi-clock-history me-2"></i> Riwayat Blast
+            </a>
+            <a href="/logout" class="list-group-item list-group-item-action mt-auto text-danger">
+                <i class="bi bi-box-arrow-left me-2"></i> Logout
+            </a>
+        </div>
+        <div class="mt-auto p-3 text-center small text-white-50">
+            &copy; 2024 WA Blast Pro
+        </div>
+    </div>
+
+    <!-- Page Content -->
+    <div id="page-content-wrapper">
+        <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
+            <div class="container-fluid">
+                <button class="btn btn-light shadow-sm" id="menu-toggle"><i class="bi bi-list"></i></button>
+                <div class="ms-auto d-flex align-items-center">
+                    <span class="fw-bold me-3" id="userInfoName">Loading...</span>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container-fluid p-3 p-md-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold text-dark mb-0 page-title"><i class="bi bi-broadcast"></i> Riwayat Blast</h3>
+                <button class="btn btn-primary rounded-pill shadow-sm" onclick="loadBlastHistory()">
+                    <i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Refresh</span>
+                </button>
+            </div>
+
+            <!-- Desktop View (Table) -->
+            <div class="card card-custom d-none d-md-block">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-custom mb-0 align-middle">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Tanggal</th>
+                                    <th>Admin</th>
+                                    <th>Mode Sender</th>
+                                    <th class="text-center">Total</th>
+                                    <th class="text-center">Sukses</th>
+                                    <th class="text-center">Gagal</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-end pe-4">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="blastHistoryTable">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile View (Cards) -->
+            <div id="blastHistoryList" class="d-md-none">
+                <!-- Skeleton Loader Example -->
+                <div class="blast-card">
+                    <div class="blast-card-header">
+                        <div class="skeleton" style="width: 100px; height: 16px;"></div>
+                        <div class="skeleton" style="width: 60px; height: 20px;"></div>
+                    </div>
+                    <div class="skeleton" style="width: 100%; height: 60px;"></div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="text-center py-5 d-none">
+                <div class="mb-3">
+                    <i class="bi bi-inbox-fill text-muted" style="font-size: 3rem; opacity: 0.3;"></i>
+                </div>
+                <h6 class="text-muted">Belum ada riwayat blast</h6>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detail -->
+<div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+            <div class="modal-header bg-dark text-white" style="border-radius: 15px 15px 0 0;">
+                <h5 class="modal-title"><i class="bi bi-list-check"></i> Rincian Blast</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0 small">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="ps-4">No.</th>
+                                <th>Target</th>
+                                <th>Pengirim (Sender)</th>
+                                <th>Status</th>
+                                <th>Error Log</th>
+                                <th>Waktu</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailTableBody">
+                            <!-- Data -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    // --- UI Logic ---
+    const wrapper = document.getElementById("wrapper");
+    document.getElementById("menu-toggle").addEventListener("click", function(e) {
+        e.preventDefault();
+        wrapper.classList.toggle("toggled");
+    });
+
+    // --- Data Logic ---
+    function checkAuth() {
+        fetch('/api/me')
+            .then(res => res.json())
+            .then(user => {
+                if(user.role !== 'superadmin') {
+                    window.location.href = '/';
+                }
+                document.getElementById('userInfoName').innerText = user.username;
+                loadBlastHistory();
+            })
+            .catch(() => window.location.href = '/login');
+    }
+
+    function loadBlastHistory() {
+        const tbody = document.getElementById('blastHistoryTable');
+        const listContainer = document.getElementById('blastHistoryList');
+        const emptyState = document.getElementById('emptyState');
+
+        // Show Skeleton / Loading
+        emptyState.classList.add('d-none');
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-5"><span class="spinner-border spinner-border-sm"></span> Memuat...</td></tr>';
+        
+        // Mobile Skeleton
+        listContainer.innerHTML = '';
+        for(let i=0; i<3; i++) {
+            listContainer.innerHTML += `
+                <div class="blast-card">
+                    <div class="blast-card-header">
+                        <div class="skeleton" style="width: 100px; height: 16px;"></div>
+                        <div class="skeleton" style="width: 60px; height: 20px;"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <div class="skeleton" style="width: 80px; height: 14px;"></div>
+                        <div class="skeleton" style="width: 80px; height: 14px;"></div>
+                    </div>
+                    <div class="skeleton" style="width: 100%; height: 50px; border-radius: 10px;"></div>
+                </div>
+            `;
+        }
+
+        fetch('/api/admin/blast-logs')
+            .then(res => res.json())
+            .then(data => {
+                tbody.innerHTML = '';
+                listContainer.innerHTML = '';
+
+                if(data.length === 0) {
+                    emptyState.classList.remove('d-none');
+                    return;
+                }
+
+                data.forEach(item => {
+                    const dateObj = new Date(item.created_at);
+                    const date = dateObj.toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: '2-digit'});
+                    const time = dateObj.toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'});
+                    
+                    let statusBadge = item.status === 'completed' 
+                        ? '<span class="badge badge-completed rounded-pill">Selesai</span>' 
+                        : '<span class="badge badge-running rounded-pill">Proses...</span>';
+                    
+                    let modeBadge = item.sender_mode === 'random' ? '<span class="badge bg-primary">Rotasi</span>' : 
+                                    (item.sender_mode === 'specific' ? '<span class="badge bg-warning text-dark">Pinjam</span>' : 
+                                    '<span class="badge bg-secondary">Sendiri</span>');
+
+                    // 1. Render Table Row (Desktop)
+                    const row = `
+                        <tr>
+                            <td class="ps-4 text-nowrap">
+                                <div class="fw-bold">${date}</div>
+                                <div class="small text-muted">${time}</div>
+                            </td>
+                            <td class="fw-bold">${item.admin_name || 'Unknown'}</td>
+                            <td>${modeBadge}</td>
+                            <td class="text-center fw-bold">${item.total_target}</td>
+                            <td class="text-center text-success fw-bold">${item.success_count}</td>
+                            <td class="text-center text-danger fw-bold">${item.failed_count}</td>
+                            <td class="text-center">${statusBadge}</td>
+                            <td class="text-end pe-4">
+                                <button class="btn btn-sm btn-outline-dark rounded-pill px-3" onclick="showDetails(${item.id})">
+                                    <i class="bi bi-eye"></i> Detail
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+
+                    // 2. Render Card (Mobile)
+                    const card = `
+                        <div class="blast-card">
+                            <div class="blast-card-header">
+                                <div class="blast-card-date">
+                                    <i class="bi bi-calendar3"></i> ${date} • ${time}
+                                </div>
+                                ${statusBadge}
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <div class="blast-info-label">Admin</div>
+                                    <div class="blast-info-value">${item.admin_name || 'Unknown'}</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="blast-info-label">Mode</div>
+                                    <div>${modeBadge}</div>
+                                </div>
+                            </div>
+
+                            <div class="blast-stats">
+                                <div class="stat-item text-primary">
+                                    <div class="stat-val">${item.total_target}</div>
+                                    <div class="stat-lbl">Total</div>
+                                </div>
+                                <div class="stat-item text-success">
+                                    <div class="stat-val">${item.success_count}</div>
+                                    <div class="stat-lbl">Sukses</div>
+                                </div>
+                                <div class="stat-item text-danger">
+                                    <div class="stat-val">${item.failed_count}</div>
+                                    <div class="stat-lbl">Gagal</div>
+                                </div>
+                            </div>
+
+                            <div class="d-grid mt-3">
+                                <button class="btn btn-outline-primary btn-sm rounded-pill" onclick="showDetails(${item.id})">
+                                    <i class="bi bi-eye me-1"></i> Lihat Rincian
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    listContainer.innerHTML += card;
+                });
+            });
+    }
+
+    function showDetails(blastId) {
+        const modal = new bootstrap.Modal(document.getElementById('detailModal'));
+        modal.show();
+        
+        const tbody = document.getElementById('detailTableBody');
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Memuat detail...</td></tr>';
+
+        fetch(`/api/admin/blast-logs/${blastId}`)
+            .then(res => res.json())
+            .then(data => {
+                tbody.innerHTML = '';
+                if(data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Tidak ada detail data.</td></tr>';
+                    return;
+                }
+
+                data.forEach((d, index) => {
+                    let statusHtml = d.status === 'success' 
+                        ? '<span class="text-success fw-bold"><i class="bi bi-check-circle"></i> Sukses</span>' 
+                        : '<span class="text-danger fw-bold"><i class="bi bi-x-circle"></i> Gagal</span>';
+                    
+                    const row = `
+                        <tr>
+                            <td class="ps-4">${index + 1}</td>
+                            <td class="fw-bold font-monospace">${d.target_number}</td>
+                            <td>${d.sender_name || 'ID: ' + d.sender_id}</td>
+                            <td>${statusHtml}</td>
+                            <td class="text-danger small">${d.error_msg || '-'}</td>
+                            <td class="small text-muted">${new Date(d.created_at).toLocaleTimeString()}</td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            });
+    }
+
+    checkAuth();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - WA Blast Pro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); /* Dark professional gradient */
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .card-header {
+            background: transparent;
+            color: #333;
+            text-align: center;
+            padding: 30px 20px 10px;
+            border: none;
+        }
+        .card-header i {
+            font-size: 3rem;
+            color: #00a884;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .card-header h4 {
+            font-weight: 700;
+            margin: 0;
+            color: #2c3e50;
+        }
+        .btn-primary {
+            background: linear-gradient(to right, #00b09b, #96c93d);
+            border: none;
+            padding: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 176, 155, 0.4);
+            background: linear-gradient(to right, #00b09b, #96c93d);
+        }
+        .form-floating input:focus {
+            border-color: #00b09b;
+            box-shadow: 0 0 0 0.25rem rgba(0, 176, 155, 0.25);
+        }
+        .footer-link {
+            text-decoration: none;
+            color: #666;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+        .footer-link:hover {
+            color: #00a884;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-card animate__animated animate__fadeInUp">
+    <div class="card-header">
+        <i class="bi bi-whatsapp"></i>
+        <h4>WA Blast Pro</h4>
+        <p class="text-muted small mt-2">Masuk untuk mengelola pesan Anda</p>
+    </div>
+    <div class="card-body p-4 pt-2">
+        <form id="loginForm">
+            <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="username" name="username" required placeholder="Username">
+                <label for="username"><i class="bi bi-person"></i> Username</label>
+            </div>
+            <div class="form-floating mb-4">
+                <input type="password" class="form-control" id="password" name="password" required placeholder="Password">
+                <label for="password"><i class="bi bi-lock"></i> Password</label>
+            </div>
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg rounded-pill">Masuk Sekarang</button>
+            </div>
+            <div class="text-center mt-4">
+                <p class="small text-muted mb-2"><a href="#" class="footer-link" onclick="showForgotPassword()">Lupa Password?</a></p>
+                <p class="small text-muted">Belum punya akun? <a href="/register" class="footer-link fw-bold">Daftar disini</a></p>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    function showForgotPassword() {
+        Swal.fire({
+            title: 'Lupa Password?',
+            text: 'Masukkan Username Anda untuk mereset password.',
+            input: 'text',
+            inputLabel: 'Username',
+            inputPlaceholder: 'Contoh: user123',
+            showCancelButton: true,
+            confirmButtonText: 'Reset Password',
+            cancelButtonText: 'Batal',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Username harus diisi!';
+                }
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Memproses...',
+                    didOpen: () => Swal.showLoading()
+                });
+
+                fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: result.value })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Swal.fire({
+                            title: 'Password Direset!',
+                            html: `Password Baru Anda:<br><h2 class="text-primary fw-bold my-3">${data.newPassword}</h2><p class="text-muted small">Silakan login dan segera ganti password ini.</p>`,
+                            icon: 'success',
+                            confirmButtonText: 'OK, Saya Mengerti'
+                        });
+                    } else {
+                        Swal.fire('Gagal', data.message, 'error');
+                    }
+                })
+                .catch(err => Swal.fire('Error', 'Gagal menghubungi server', 'error'));
+            }
+        });
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new URLSearchParams(new FormData(this));
+
+        Swal.fire({
+            title: 'Memproses...',
+            text: 'Sedang memverifikasi data Anda',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        fetch('/login', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Login Berhasil!',
+                    text: 'Mengalihkan ke dashboard...',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.href = data.redirect;
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal Masuk',
+                    text: data.message
+                });
+            }
+        })
+        .catch(err => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Terjadi kesalahan koneksi'
+            });
+        });
+    });
+</script>
+</body>
+</html>
