@@ -197,6 +197,18 @@ async function initPg(pool) {
                 );
             `);
 
+            // --- Auto Migration for missing columns ---
+            try {
+                console.log("Checking for schema migrations...");
+                await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT");
+                await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS inactive_notified BOOLEAN DEFAULT FALSE");
+                await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT UNIQUE");
+                await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER");
+                console.log("Schema migration completed.");
+            } catch (err) {
+                console.error("Migration Warning (Non-fatal):", err.message);
+            }
+
             // Create Default Admin
             const res = await client.query("SELECT * FROM users WHERE username = $1", ['admin']);
             if (res.rows.length === 0) {

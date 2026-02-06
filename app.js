@@ -29,6 +29,16 @@ if (TELEGRAM_BOT_TOKEN && TELEGRAM_BOT_TOKEN !== 'YOUR_TOKEN_HERE') {
     try {
         bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true }); 
         console.log('Telegram Bot Initialized');
+        
+        // Handle Polling Errors to prevent crash
+        bot.on('polling_error', (error) => {
+            if (error.code === 'ETELEGRAM' && error.message.includes('Conflict')) {
+                // Suppress conflict error logs (happens when multiple instances run)
+            } else {
+                console.error('Telegram Bot Polling Error:', error.message);
+            }
+        });
+
     } catch (error) {
         console.error('Telegram Bot Error:', error.message);
     }
@@ -350,9 +360,14 @@ app.post('/login', (req, res) => {
             req.session.role = user.role;
             
             // Auto-init all sessions
-            db.all("SELECT id, session_id FROM whatsapp_sessions WHERE user_id = ?", [user.id], (err, rows) => {
+            db.all("SELECT id, session_id FROM whatsapp_sessions WHERE user_id = ?", [user.id], async (err, rows) => {
                 if (rows) {
-                    rows.forEach(row => initializeClient(row.id, user.id, row.session_id));
+                    for (const row of rows) {
+                        if (!sessions.has(row.id)) {
+                             initializeClient(row.id, user.id, row.session_id);
+                             await new Promise(r => setTimeout(r, 5000)); // Stagger login init too
+                        }
+                    }
                 }
             });
 
@@ -506,10 +521,19 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                    // Ensure number format
                    let num = pairing_number.replace(/\D/g, '');
                    if (num.startsWith('0')) num = '62' + num.slice(1);
+                   
+                   // Extra delay to ensure WA Web modules are loaded
+                   console.log(`Waiting for WA Web modules to load for session ${newDbId}...`);
+                   await sleep(5000);
 
-                   const code = await client.requestPairingCode(num);
-                   console.log(`Pairing Code for ${uniqueSessionId}: ${code}`);
-                   io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: code });
+                   try {
+                       const code = await client.requestPairingCode(num);
+                       console.log(`Pairing Code for ${uniqueSessionId}: ${code}`);
+                       io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: code });
+                   } catch (innerErr) {
+                       console.error("Pairing Code Inner Error:", innerErr.message);
+                       io.to(userId.toString()).emit('message', `Gagal request Pairing Code (Retrying...): ${innerErr.message}`);
+                   }
                 }
             } catch (e) {
                 console.error("Pairing Code Error:", e);
@@ -675,7 +699,7 @@ app.post('/api/admin/topups/approve', isAuthenticated, isSuperAdmin, (req, res) 
 // --- Admin Bank Management ---
 app.get('/api/admin/banks', isAuthenticated, (req, res) => {
     // Accessible by all authenticated users to populate dropdown
-    db.all("SELECT * FROM admin_banks WHERE is_active = 1", [], (err, rows) => {
+    db.all("SELECT * FROM admin_banks WHERE is_active = ?", [true], (err, rows) => {
         if (err) return res.status(500).json({ error: 'Database error' });
         res.json(rows);
     });
@@ -736,17 +760,18 @@ app.post('/api/admin/device/restart', isAuthenticated, isSuperAdmin, (req, res) 
         res.json({ status: 'success', message: 'All devices restarting...' });
     } else {
         // Restart specific user's sessions
-        db.all("SELECT id, session_id FROM whatsapp_sessions WHERE user_id = ?", [targetUserId], (err, rows) => {
+        db.all("SELECT id, session_id FROM whatsapp_sessions WHERE user_id = ?", [targetUserId], async (err, rows) => {
             if (rows) {
-                rows.forEach(row => {
+                res.json({ status: 'success', message: 'User devices restarting (sequentially)...' });
+                for (const row of rows) {
                     const client = sessions.get(row.id);
                     if (client) {
-                        client.destroy().catch(()=>{});
+                        try { await client.destroy(); } catch(e){}
                         sessions.delete(row.id);
                     }
                     initializeClient(row.id, targetUserId, row.session_id);
-                });
-                res.json({ status: 'success', message: 'User devices restarting...' });
+                    await new Promise(r => setTimeout(r, 5000));
+                }
             } else {
                 res.json({ status: 'error', message: 'No devices found' });
             }
@@ -1113,11 +1138,18 @@ function restoreSessions() {
     });
 
     // 2. Load all sessions from DB
-    db.all("SELECT id, user_id, session_id FROM whatsapp_sessions", (err, rows) => {
+    db.all("SELECT id, user_id, session_id FROM whatsapp_sessions", async (err, rows) => {
         if (rows) {
-            rows.forEach(row => {
-                initializeClient(row.id, row.user_id, row.session_id);
-            });
+            console.log(`Found ${rows.length} sessions to restore. Starting sequential initialization...`);
+            for (const row of rows) {
+                // Check if already running to be safe
+                if (!sessions.has(row.id)) {
+                    initializeClient(row.id, row.user_id, row.session_id);
+                    // Delay 15 seconds between starts to prevent CPU/RAM spike on Railway
+                    console.log(`Waiting 15s before next session...`);
+                    await new Promise(r => setTimeout(r, 15000));
+                }
+            }
         }
     });
 }
@@ -1142,7 +1174,7 @@ async function checkInactiveUsers() {
     const sql = `
         SELECT u.id, u.username, u.phone, u.referral_code 
         FROM users u
-        WHERE u.inactive_notified = 0 OR u.inactive_notified IS NULL
+        WHERE (u.inactive_notified = FALSE OR u.inactive_notified IS NULL)
     `;
 
     db.all(sql, [], async (err, users) => {
@@ -1188,7 +1220,7 @@ _User ini belum menautkan WhatsApp. Segera ingatkan agar mereka bisa mendapatkan
                 await sendTelegramNotification(msg, opts);
 
                 // Mark as notified
-                db.run("UPDATE users SET inactive_notified = 1 WHERE id = ?", [user.id]);
+                db.run("UPDATE users SET inactive_notified = ? WHERE id = ?", [true, user.id]);
             }
         }
     });
