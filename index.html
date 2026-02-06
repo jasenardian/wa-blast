@@ -1710,21 +1710,8 @@
                 })
                 .catch(err => {
                     console.error("Init User Error:", err);
-                    // Silent redirect for invalid session data, avoid scary alerts for common auth issues
-                    if (err.message === "Invalid session data" || err.message.includes("JSON") || err.message === "Gagal terhubung ke server") {
-                        window.location.href = '/login';
-                    } else {
-                        // Only show alert for genuine connection errors
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Koneksi Gagal',
-                            text: 'Gagal memuat data user. Silakan coba login ulang.',
-                            showCancelButton: false,
-                            confirmButtonText: 'Login Ulang',
-                        }).then(() => {
-                            window.location.href = '/login';
-                        });
-                    }
+                    // Force redirect for ANY error during initUser to prevent stuck on dashboard with alert
+                    window.location.href = '/login';
                 });
         }
 
