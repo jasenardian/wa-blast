@@ -170,6 +170,10 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
         });
     });
 
+    client.on('loading_screen', (percent, message) => {
+        io.to(userId.toString()).emit('loading_screen', { sessionId: dbSessionId, percent, message });
+    });
+
     client.on('ready', () => {
         const info = client.info;
         const device_info = JSON.stringify({

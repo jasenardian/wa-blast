@@ -1813,23 +1813,55 @@
         socket.on('qr', data => {
             if(currentScanningSessionId == data.sessionId) {
                 document.getElementById('newDeviceQr').innerHTML = `<img src="${data.url}" class="img-fluid">`;
-                document.getElementById('newDeviceStatus').innerText = "Scan QR sekarang";
+                document.getElementById('newDeviceStatus').className = "fw-bold text-dark mt-3";
+                document.getElementById('newDeviceStatus').innerText = "Silakan Scan QR Code";
             }
         });
+        
+        socket.on('authenticated', data => {
+            if(currentScanningSessionId == data.sessionId) {
+                document.getElementById('newDeviceQr').innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;"></div>
+                    <div class="mt-3 fw-bold text-success">Terhubung!</div>
+                </div>`;
+                document.getElementById('newDeviceStatus').className = "fw-bold text-success mt-3";
+                document.getElementById('newDeviceStatus').innerText = "Sedang memuat chat (10-30 detik)...";
+            }
+        });
+
+        socket.on('loading_screen', data => {
+            if(currentScanningSessionId == data.sessionId) {
+                document.getElementById('newDeviceStatus').innerText = `Memuat: ${data.percent}% - ${data.message}`;
+            }
+        });
+
         socket.on('pairing_code', data => {
             if(currentScanningSessionId == data.sessionId) {
                 document.getElementById('otpCodeDisplay').innerText = data.code;
                 document.getElementById('newDeviceStatus').innerText = "Masukkan kode di HP";
             }
         });
+
         socket.on('ready', data => {
             if(currentScanningSessionId == data.sessionId) {
                 bootstrap.Modal.getInstance(document.getElementById('addDeviceModal')).hide();
-                Swal.fire('Sukses', 'Terhubung', 'success');
+                Swal.fire({
+                    title: 'Berhasil!',
+                    text: 'WhatsApp berhasil terhubung.',
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
                 currentScanningSessionId = null;
                 loadDevices();
                 loadUserStats();
             }
+        });
+        
+        socket.on('auth_failure', data => {
+             // Note: auth_failure event structure might need verification in app.js, usually session obj
+             // But we assume app.js emits message or we can listen here if we emitted it
         });
 
         // --- Global Socket Listeners ---
