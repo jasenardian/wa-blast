@@ -96,8 +96,9 @@ const sessionMiddleware = session({
     proxy: true, // Required for Railway/Heroku (Reverse Proxy)
     cookie: { 
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 hari
-        secure: process.env.NODE_ENV === 'production', 
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+        secure: process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT_NAME === 'production', 
+        sameSite: 'lax', // Ubah ke lax untuk kompatibilitas lebih baik jika domain beda
+        httpOnly: true
     }
 });
 app.use(sessionMiddleware);

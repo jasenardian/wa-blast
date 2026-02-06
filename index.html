@@ -1714,16 +1714,11 @@
                         Swal.fire({
                             icon: 'error',
                             title: 'Koneksi Gagal',
-                            text: 'Gagal memuat data user. Server mungkin sedang restart atau sibuk.',
-                            showCancelButton: true,
-                            confirmButtonText: 'Coba Lagi',
-                            cancelButtonText: 'Login Ulang'
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                window.location.reload();
-                            } else {
-                                window.location.href = '/login';
-                            }
+                            text: 'Gagal memuat data user. Silakan coba login ulang.',
+                            showCancelButton: false,
+                            confirmButtonText: 'Login Ulang',
+                        }).then(() => {
+                            window.location.href = '/login';
                         });
                     }
                 });
