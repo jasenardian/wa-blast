@@ -57,12 +57,30 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Setup Session
-const sessionMiddleware = session({
-    secret: 'secret-key-wajib-ganti-nanti',
-    store: new (require('connect-sqlite3')(session))({
+let sessionStore;
+if (process.env.DATABASE_URL) {
+    const pgSession = require('connect-pg-simple')(session);
+    const { Pool } = require('pg');
+    const pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+    });
+    sessionStore = new pgSession({
+        pool : pool,
+        tableName : 'app_sessions',
+        createTableIfMissing: true
+    });
+} else {
+    const SQLiteStore = require('connect-sqlite3')(session);
+    sessionStore = new SQLiteStore({
         db: 'sessions.sqlite',
         dir: './data'
-    }),
+    });
+}
+
+const sessionMiddleware = session({
+    secret: 'secret-key-wajib-ganti-nanti',
+    store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: { 
