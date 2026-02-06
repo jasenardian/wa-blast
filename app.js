@@ -891,6 +891,46 @@ app.get('/api/me/blast-logs', isAuthenticated, (req, res) => {
     });
 });
 
+app.get('/api/me/earnings', isAuthenticated, (req, res) => {
+    const userId = req.session.userId;
+    const type = req.query.type || 'blast'; // blast | referral
+
+    if (type === 'blast') {
+        // Fetch logs where USER'S DEVICE was the sender (Crowdsourcing Contribution)
+        db.all(`
+            SELECT 
+                d.created_at, 
+                d.target_number, 
+                d.status, 
+                s.session_name,
+                550 as amount 
+            FROM blast_log_details d
+            JOIN whatsapp_sessions s ON d.sender_id = s.id
+            WHERE s.user_id = ? AND d.status = 'success'
+            ORDER BY d.created_at DESC LIMIT 100
+        `, [userId], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows);
+        });
+    } else {
+        // Referral Commission History
+        db.all(`
+            SELECT 
+                rc.created_at, 
+                u.username as source_user, 
+                rc.amount, 
+                rc.description 
+            FROM referral_commissions rc
+            JOIN users u ON rc.referred_user_id = u.id
+            WHERE rc.referrer_id = ?
+            ORDER BY rc.created_at DESC LIMIT 100
+        `, [userId], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows);
+        });
+    }
+});
+
 app.post('/api/withdraw', isAuthenticated, (req, res) => {
     let { amount, bank_name, account_number, account_name, whatsapp } = req.body;
     const userId = req.session.userId;
@@ -1110,10 +1150,10 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
                       if (formattedNumber.startsWith('0')) formattedNumber = '62' + formattedNumber.slice(1);
                       if (!formattedNumber.endsWith('@c.us')) formattedNumber += '@c.us';
 
-                      const isRegistered = await client.isRegisteredUser(formattedNumber);
+                      const isRegistered = await sender.client.isRegisteredUser(formattedNumber);
                       if (isRegistered) {
                           const finalMessage = spintax(message);
-                          await client.sendMessage(formattedNumber, finalMessage);
+                          await sender.client.sendMessage(formattedNumber, finalMessage);
                           
                           if (userRole === 'admin') {
                               // Admin: PAYS for blast
