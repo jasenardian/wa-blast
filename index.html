@@ -1718,12 +1718,24 @@
                          throw new Error("Invalid session data");
                     }
 
+                    // Update Total Balance Realtime from User Data
                     currentUserBalance = user.balance;
                     currentUserReferralCode = user.referral_code;
+                    
+                    // Update Header & Dashboard Balance
+                    if(document.getElementById('dashBalance')) document.getElementById('dashBalance').innerText = formatRupiah(user.balance);
+                    if(document.getElementById('wdBalanceDisplay')) document.getElementById('wdBalanceDisplay').innerText = formatRupiah(user.balance);
+                    
+                    // Also update earning card if needed
+                    fetch('/api/me/earnings/stats').then(r=>r.json()).then(stats => {
+                        if(document.getElementById('dashStatEarn')) document.getElementById('dashStatEarn').innerText = formatRupiah(stats.total || 0);
+                    }).catch(e => console.log('Earnings stat error', e));
+
                     if(document.getElementById('headerUsername')) document.getElementById('headerUsername').innerText = user.username;
                     if(document.getElementById('greetUsername')) document.getElementById('greetUsername').innerText = user.username;
                     if(document.getElementById('headerAvatar')) document.getElementById('headerAvatar').innerText = user.username.charAt(0).toUpperCase();
                     if(document.getElementById('dashBalance')) document.getElementById('dashBalance').innerText = formatRupiah(user.balance);
+                    // Remove duplicate line
                     if(document.getElementById('memberSince')) document.getElementById('memberSince').innerText = "06 Feb 2026"; 
                     
                     // Profile Data
