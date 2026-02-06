@@ -1710,18 +1710,11 @@
                 })
                 .catch(err => {
                     console.error("Init User Error:", err);
-                    if (err.message === "Gagal terhubung ke server" || err.message.includes("JSON")) {
-                         // Likely session expired or server restart returning HTML
-                         Swal.fire({
-                            icon: 'warning',
-                            title: 'Sesi Berakhir',
-                            text: 'Silakan login kembali.',
-                            timer: 2000,
-                            showConfirmButton: false
-                        }).then(() => {
-                            window.location.href = '/login';
-                        });
+                    // Silent redirect for invalid session data, avoid scary alerts for common auth issues
+                    if (err.message === "Invalid session data" || err.message.includes("JSON") || err.message === "Gagal terhubung ke server") {
+                        window.location.href = '/login';
                     } else {
+                        // Only show alert for genuine connection errors
                         Swal.fire({
                             icon: 'error',
                             title: 'Koneksi Gagal',
