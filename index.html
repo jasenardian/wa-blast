@@ -1560,9 +1560,14 @@
                                      </div>
                                  </div>
                              </div>
-                             <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteDevice(${d.id})">
-                                 <i class="bi bi-trash"></i>
-                             </button>
+                             <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-warning border-0" onclick="restartDevice(${d.id})" title="Restart Koneksi">
+                                     <i class="bi bi-arrow-clockwise"></i>
+                                 </button>
+                                 <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteDevice(${d.id})" title="Hapus Device">
+                                     <i class="bi bi-trash"></i>
+                                 </button>
+                             </div>
                          </div>`;
                     });
                     htmlContent += '</div>';
@@ -1587,7 +1592,10 @@
                                         <div class="small text-secondary">${d.status}</div>
                                     </div>
                                 </div>
+                            <div class="d-flex gap-1">
+                                <button class="btn btn-sm btn-outline-warning border-0" onclick="restartDevice(${d.id})"><i class="bi bi-arrow-clockwise"></i></button>
                                 <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteDevice(${d.id})"><i class="bi bi-trash"></i></button>
+                            </div>
                             </div>`;
                          });
                      }
@@ -1810,6 +1818,57 @@
         function deleteDevice(id) {
             Swal.fire({title:'Hapus?', icon:'warning', showCancelButton:true, confirmButtonText:'Ya'}).then(r=>{
                 if(r.isConfirmed) fetch('/api/devices/'+id, {method:'DELETE'}).then(()=>loadDevices());
+            });
+        }
+
+        function restartDevice(id) {
+            Swal.fire({
+                title: 'Restart Koneksi?', 
+                text: 'Proses ini akan memuat ulang sesi WhatsApp Anda.', 
+                icon: 'question', 
+                showCancelButton: true, 
+                confirmButtonText: 'Ya, Restart'
+            }).then(r=>{
+                if(r.isConfirmed) {
+                    Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
+                    fetch('/api/devices/'+id+'/restart', {method:'POST'})
+                    .then(r=>r.json())
+                    .then(d => {
+                        if(d.status === 'success') {
+                            Swal.fire('Sukses', 'Device sedang direstart. Tunggu notifikasi Connected.', 'success');
+                            loadDevices();
+                        } else {
+                            Swal.fire('Gagal', d.message, 'error');
+                        }
+                    });
+                }
+            });
+        }
+
+        function restartAdminDevice(id) {
+            Swal.fire({
+                title: 'Restart Device User?', 
+                text: 'Sesi member akan direstart paksa.', 
+                icon: 'warning', 
+                showCancelButton: true, 
+                confirmButtonText: 'Restart'
+            }).then(r=>{
+                if(r.isConfirmed) {
+                    fetchAuth('/api/admin/device/restart', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ sessionId: id })
+                    })
+                    .then(r=>r.json())
+                    .then(d => {
+                        if(d.status === 'success') {
+                            Swal.fire('Sukses', d.message, 'success');
+                            loadAdminData();
+                        } else {
+                            Swal.fire('Gagal', d.message, 'error');
+                        }
+                    });
+                }
             });
         }
 
@@ -2064,9 +2123,15 @@
                                                 phoneInfo = info.wid ? info.wid.user : 'Belum Scan';
                                             } catch(e) { phoneInfo = 'Invalid Data'; }
                                         }
-                                        return `<div class="d-flex justify-content-between small mb-1">
-                                            <span class="text-white-50">${d.session_name} (${phoneInfo})</span>
-                                            <span class="${statusColor} fw-bold" style="font-size: 0.7rem;">${d.status.toUpperCase()}</span>
+                                        return `<div class="d-flex justify-content-between align-items-center small mb-2 border-bottom border-secondary border-opacity-10 pb-1">
+                                            <div>
+                                                <div class="text-white-50">${d.session_name}</div>
+                                                <div class="text-secondary" style="font-size: 0.65rem;">${phoneInfo}</div>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="${statusColor} fw-bold" style="font-size: 0.7rem;">${d.status.toUpperCase()}</span>
+                                                <button class="btn btn-sm btn-outline-warning py-0 px-1" onclick="restartAdminDevice(${d.id})" title="Restart Device"><i class="bi bi-arrow-clockwise"></i></button>
+                                            </div>
                                         </div>`;
                                     }).join('')}
                                 </div>

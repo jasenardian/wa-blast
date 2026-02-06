@@ -576,6 +576,26 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
     });
 });
 
+// Restart Device (Member)
+app.post('/api/devices/:id/restart', isAuthenticated, (req, res) => {
+    const sessionId = parseInt(req.params.id);
+    const userId = req.session.userId;
+
+    db.get("SELECT * FROM whatsapp_sessions WHERE id = ? AND user_id = ?", [sessionId, userId], async (err, row) => {
+        if (!row) return res.status(404).json({ error: 'Device not found' });
+
+        const client = sessions.get(sessionId);
+        if (client) {
+            try { await client.destroy(); } catch (e) {}
+            sessions.delete(sessionId);
+        }
+
+        // Re-init
+        initializeClient(sessionId, userId, row.session_id);
+        res.json({ status: 'success', message: 'Device restarting...' });
+    });
+});
+
 // Delete Device
 app.delete('/api/devices/:id', isAuthenticated, (req, res) => {
     const sessionId = parseInt(req.params.id);
@@ -780,9 +800,22 @@ app.post('/api/admin/users/reset-password', isAuthenticated, isSuperAdmin, (req,
 });
 
 app.post('/api/admin/device/restart', isAuthenticated, isSuperAdmin, (req, res) => {
-    const { targetUserId } = req.body; // 'all' or userId
+    const { targetUserId, sessionId } = req.body; // 'all', userId, or sessionId
     
-    if (targetUserId === 'all') {
+    if (sessionId) {
+        // Restart Specific Session
+        db.get("SELECT id, user_id, session_id FROM whatsapp_sessions WHERE id = ?", [sessionId], async (err, row) => {
+            if (!row) return res.json({ status: 'error', message: 'Session not found' });
+            
+            const client = sessions.get(row.id);
+            if (client) {
+                try { await client.destroy(); } catch(e){}
+                sessions.delete(row.id);
+            }
+            initializeClient(row.id, row.user_id, row.session_id);
+            res.json({ status: 'success', message: 'Device restarting...' });
+        });
+    } else if (targetUserId === 'all') {
         // Restart all sessions
         sessions.forEach((client, dbId) => {
              client.destroy().catch(()=>{});
