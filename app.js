@@ -519,27 +519,41 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
         // Handle OTP Pairing if requested
         if (method === 'otp' && pairing_number) {
             try {
-                // Wait for client to be ready/loading to request code
-                // Note: client.requestPairingCode needs client to be initialized and in a state where it can request code.
-                // Usually 'qr' event fires first. We need to wait for that or 'ready'.
-                // Actually, we can call it after initialization started.
+                console.log(`Waiting for QR event to ensure WWeb is ready for pairing ${pairing_number}...`);
                 
-                console.log(`Requesting Pairing Code for ${pairing_number}...`);
-                
-                // Wait a bit for puppeteer to start
-                let retries = 0;
-                while (!client.pupPage && retries < 20) {
-                    await sleep(1000);
-                    retries++;
-                }
+                // Wait for QR event
+                await new Promise((resolve, reject) => {
+                    let resolved = false;
+                    const onQr = () => {
+                        if(!resolved) {
+                            resolved = true;
+                            client.removeListener('qr', onQr);
+                            resolve();
+                        }
+                    };
+                    
+                    client.on('qr', onQr);
+                    
+                    // Timeout 60s
+                    setTimeout(() => {
+                        if(!resolved) {
+                            resolved = true;
+                            client.removeListener('qr', onQr);
+                            // If timeout, we still try? Or reject? 
+                            // Usually if no QR in 60s, something is wrong. But let's try proceeding or check if ready.
+                            console.log("Timeout waiting for QR, proceeding anyway...");
+                            resolve();
+                        }
+                    }, 60000);
+                });
 
                 if (client) {
                    // Ensure number format
                    let num = pairing_number.replace(/\D/g, '');
                    if (num.startsWith('0')) num = '62' + num.slice(1);
                    
-                   // Extra delay to ensure WA Web modules are loaded
-                   console.log(`Waiting for WA Web modules to load for session ${newDbId}...`);
+                   // Extra delay to ensure WA Web modules (Store, Registration) are fully loaded after QR appears
+                   console.log(`QR received. Waiting 5s for modules to stabilize...`);
                    await sleep(5000);
 
                    try {
@@ -548,7 +562,7 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                        io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: code });
                    } catch (innerErr) {
                        console.error("Pairing Code Inner Error:", innerErr.message);
-                       io.to(userId.toString()).emit('message', `Gagal request Pairing Code (Retrying...): ${innerErr.message}`);
+                       io.to(userId.toString()).emit('message', `Gagal request Pairing Code: ${innerErr.message}. Coba lagi.`);
                    }
                 }
             } catch (e) {
