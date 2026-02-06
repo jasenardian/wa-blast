@@ -1346,19 +1346,46 @@ function restoreSessions() {
         });
     });
 
-    // 2. Load all sessions from DB
+    // 2. Load all sessions from DB with Queue System
     db.all("SELECT id, user_id, session_id FROM whatsapp_sessions", async (err, rows) => {
         if (rows) {
-            console.log(`Found ${rows.length} sessions to restore. Starting sequential initialization...`);
-            for (const row of rows) {
-                // Check if already running to be safe
-                if (!sessions.has(row.id)) {
-                    initializeClient(row.id, row.user_id, row.session_id);
-                    // Delay 15 seconds between starts to prevent CPU/RAM spike on Railway
-                    console.log(`Waiting 15s before next session...`);
-                    await new Promise(r => setTimeout(r, 15000));
+            console.log(`Found ${rows.length} sessions to restore. Using Queue System to prevent OOM...`);
+            
+            // Queue Processor
+            const queue = [...rows];
+            const MAX_CONCURRENT_INIT = 1; // STRICTLY 1 at a time for low RAM envs
+            let activeWorkers = 0;
+
+            const processQueue = async () => {
+                if (queue.length === 0 && activeWorkers === 0) {
+                    console.log("All sessions processed.");
+                    return;
                 }
-            }
+
+                while (activeWorkers < MAX_CONCURRENT_INIT && queue.length > 0) {
+                    const row = queue.shift();
+                    activeWorkers++;
+                    
+                    try {
+                        if (!sessions.has(row.id)) {
+                            console.log(`[Queue] Starting session ${row.id}...`);
+                            initializeClient(row.id, row.user_id, row.session_id);
+                            
+                            // Wait for a significant delay before starting NEXT one
+                            // Give puppeteer time to launch chrome and stabilize memory
+                            await new Promise(r => setTimeout(r, 20000)); // 20s delay
+                        }
+                    } catch (e) {
+                        console.error(`[Queue] Failed to start session ${row.id}:`, e);
+                    } finally {
+                        activeWorkers--;
+                        processQueue(); // Recursive call to continue
+                    }
+                }
+            };
+
+            // Start processing
+            processQueue();
         }
     });
 }
@@ -1498,7 +1525,7 @@ if (bot) {
     });
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log('App running on port ' + PORT);
   sendTelegramNotification(`
 🚀 *SERVER STARTED*
