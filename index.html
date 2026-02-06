@@ -1635,10 +1635,16 @@
         function initUser() {
             fetch('/api/me')
                 .then(res => {
+                    // Check if redirected to login (Session Expired)
+                    if (res.url && res.url.includes('/login')) {
+                        window.location.href = '/login';
+                        return;
+                    }
                     if (!res.ok) throw new Error("Gagal terhubung ke server");
                     return res.json();
                 })
                 .then(user => {
+                    if(!user) return; // Handled by redirect above
                     currentUserBalance = user.balance;
                     currentUserReferralCode = user.referral_code;
                     document.getElementById('headerUsername').innerText = user.username;
@@ -1693,12 +1699,22 @@
                 })
                 .catch(err => {
                     console.error("Init User Error:", err);
-                    // Show error only if we are in a browser context where UI matters
-                    if (typeof Swal !== 'undefined') {
+                    if (err.message === "Gagal terhubung ke server" || err.message.includes("JSON")) {
+                         // Likely session expired or server restart returning HTML
+                         Swal.fire({
+                            icon: 'warning',
+                            title: 'Sesi Berakhir',
+                            text: 'Silakan login kembali.',
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.href = '/login';
+                        });
+                    } else {
                         Swal.fire({
                             icon: 'error',
                             title: 'Koneksi Gagal',
-                            text: 'Gagal memuat data user. Pastikan Anda sudah Login dan Server berjalan.',
+                            text: 'Gagal memuat data user. Pastikan Server berjalan.',
                             footer: '<a href="/login">Ke Halaman Login</a>'
                         });
                     }
