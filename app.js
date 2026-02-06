@@ -93,6 +93,7 @@ const sessionMiddleware = session({
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
+    proxy: true, // Required for Railway/Heroku (Reverse Proxy)
     cookie: { 
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 hari
         secure: process.env.NODE_ENV === 'production', 
