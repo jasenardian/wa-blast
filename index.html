@@ -1823,7 +1823,7 @@
                     select.innerHTML = '<option disabled>Belum ada metode pembayaran</option>';
                 } else {
                     banks.forEach(b => {
-                        select.innerHTML += `<option value="${b.bank_name} - ${b.account_number}">${b.bank_name} (${b.account_number} a.n ${b.account_name})</option>`;
+                        select.innerHTML += `<option value="${b.bank_name} - ${b.account_number}" data-acc-name="${b.account_name}">${b.bank_name} (${b.account_number} a.n ${b.account_name})</option>`;
                     });
                 }
                 const modal = new bootstrap.Modal(document.getElementById('topupModal'));
@@ -1834,7 +1834,10 @@
         document.getElementById('topupForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const amount = document.getElementById('topupAmount').value;
-            const method = document.getElementById('topupMethod').value;
+            const select = document.getElementById('topupMethod');
+            const method = select.value;
+            const selectedOption = select.options[select.selectedIndex];
+            const accName = selectedOption.getAttribute('data-acc-name') || 'Admin Blast';
             
             fetchAuth('/api/topup', {
                 method: 'POST',
@@ -1847,8 +1850,8 @@
                     Swal.fire({
                         title: 'Permintaan Dibuat!',
                         html: `Silakan transfer <b>${formatRupiah(amount)}</b> ke:<br><br>
-                        <b>${method} - 081234567890</b><br>
-                        a.n. Admin Blast<br><br>
+                        <b>${method}</b><br>
+                        a.n. ${accName}<br><br>
                         Setelah transfer, konfirmasi ke Admin via WhatsApp/Telegram.`,
                         icon: 'success',
                         confirmButtonText: 'Konfirmasi ke Admin',
