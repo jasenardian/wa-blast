@@ -59,10 +59,14 @@ app.use(express.urlencoded({ extended: true }));
 // Setup Session
 const sessionMiddleware = session({
     secret: 'secret-key-wajib-ganti-nanti',
+    store: new (require('connect-sqlite3')(session))({
+        db: 'sessions.sqlite',
+        dir: './data'
+    }),
     resave: false,
     saveUninitialized: false,
     cookie: { 
-        maxAge: 24 * 60 * 60 * 1000, // 1 hari
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 hari
         secure: process.env.NODE_ENV === 'production', 
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
     }
@@ -284,7 +288,13 @@ process.on('SIGINT', () => {
 
 process.on('SIGTERM', () => {
     console.log('Server stopping...');
-    sendTelegramNotification('🛑 Server Stopping (SIGTERM)...').then(() => process.exit(0));
+    sendTelegramNotification('🛑 Server Stopping (SIGTERM)...').then(() => {
+        // Close DB properly
+        db.close((err) => {
+             if(err) console.error(err);
+             process.exit(0);
+        });
+    });
 });
 
 // --- Routes ---
