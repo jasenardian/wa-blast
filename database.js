@@ -236,7 +236,6 @@ async function initPg(pool) {
         if (retries === 0) console.error("PG Init Failed after multiple attempts.");
         else await sleep(5000);
     }
-    }
 }
 
 // 2. SQLite Initialization
