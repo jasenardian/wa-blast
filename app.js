@@ -559,7 +559,10 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                    try {
                        const code = await client.requestPairingCode(num);
                        console.log(`Pairing Code for ${uniqueSessionId}: ${code}`);
+                       // Force delay to ensure socket is ready/connected
+                       await sleep(1000);
                        io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: code });
+                       io.to(userId.toString()).emit('message', `Kode Pairing: ${code}`);
                    } catch (innerErr) {
                        console.error("Pairing Code Inner Error:", innerErr.message);
                        io.to(userId.toString()).emit('message', `Gagal request Pairing Code: ${innerErr.message}. Coba lagi.`);

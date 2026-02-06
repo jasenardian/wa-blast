@@ -1789,9 +1789,13 @@
             if(method === 'otp') {
                 document.getElementById('newDeviceQr').style.display = 'none';
                 document.getElementById('otpDisplayArea').style.display = 'block';
+                document.getElementById('newDeviceStatus').innerText = "Sedang meminta kode...";
+                document.getElementById('newDeviceStatus').className = "fw-bold text-info mt-3";
             } else {
                 document.getElementById('newDeviceQr').style.display = 'flex';
                 document.getElementById('otpDisplayArea').style.display = 'none';
+                document.getElementById('newDeviceStatus').innerText = "Menunggu QR Code...";
+                document.getElementById('newDeviceStatus').className = "fw-bold text-warning mt-3";
             }
 
             fetch('/api/devices', {
