@@ -1637,15 +1637,25 @@
             fetch('/api/me', { credentials: 'include' })
                 .then(res => {
                     // Check if redirected to login (Session Expired)
-                    if (res.url && res.url.includes('/login')) {
+                    if (res.redirected && res.url.includes('/login')) {
                         window.location.href = '/login';
-                        return;
+                        return null;
+                    }
+                    if (res.status === 401 || res.status === 403) {
+                         window.location.href = '/login';
+                         return null;
                     }
                     if (!res.ok) throw new Error("Gagal terhubung ke server");
                     return res.json();
                 })
                 .then(user => {
-                    if(!user) return; // Handled by redirect above
+                    if(!user) return; // Stop if redirected
+                    
+                    if (user.status === 'error' || !user.username) {
+                         // Invalid user data
+                         throw new Error("Invalid session data");
+                    }
+
                     currentUserBalance = user.balance;
                     currentUserReferralCode = user.referral_code;
                     document.getElementById('headerUsername').innerText = user.username;
