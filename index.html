@@ -574,29 +574,59 @@
             <!-- Informasi Section -->
             <h5 class="mb-3">Informasi</h5>
             
+            <!-- Program Referral -->
+            <div class="info-card position-relative mb-3">
+                <i class="bi bi-bullseye position-absolute top-0 end-0 m-3 text-accent-purple fs-4"></i>
+                <div class="info-title mb-3">Program Referral</div>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="info-label">Total Referral</div>
+                        <div class="info-value text-accent-purple fs-5" id="dashRefTotal">0</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="info-label">Rate Komisi</div>
+                        <div class="info-value text-accent-yellow fs-5">Rp60</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarif & Ketentuan -->
+            <div class="info-card position-relative mb-3">
+                <i class="bi bi-file-text position-absolute top-0 end-0 m-3 text-white fs-4"></i>
+                <div class="info-title mb-3">Tarif & Ketentuan</div>
+                <div class="info-row">
+                    <span class="info-label">Rate per pesan:</span>
+                    <span class="info-value">Rp550</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Min. withdraw:</span>
+                    <span class="info-value">Rp10.000</span>
+                </div>
+            </div>
+
             <!-- Riwayat Blast (Superadmin Only) -->
-            <div id="dashboardBlastHistory" style="display: none;" class="mt-4">
+            <div id="dashboardBlastHistory" style="display: none;" class="mt-4 mb-5">
                 <h5 class="mb-3 d-flex align-items-center justify-content-between">
                     <span>Riwayat Blast (Global)</span>
                     <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="loadBlastHistory()">
-                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                        <i class="bi bi-arrow-clockwise"></i>
                     </button>
                 </h5>
                 
                 <div class="card bg-dark border border-secondary border-opacity-25 rounded-2 overflow-hidden">
-                    <!-- Desktop Table -->
-                    <div class="table-responsive d-none d-md-block">
+                    <!-- Desktop Table (Hidden on Mobile) -->
+                    <div class="table-responsive d-none d-md-block" style="max-height: 400px; overflow-y: auto;">
                         <table class="table table-dark table-hover table-dark-custom mb-0 align-middle">
                             <thead>
                                 <tr>
-                                    <th class="ps-3 py-3 text-secondary small text-uppercase">Waktu</th>
-                                    <th class="py-3 text-secondary small text-uppercase">Admin</th>
-                                    <th class="py-3 text-secondary small text-uppercase">Mode</th>
-                                    <th class="text-center py-3 text-secondary small text-uppercase">Total</th>
-                                    <th class="text-center py-3 text-secondary small text-uppercase">Sukses</th>
-                                    <th class="text-center py-3 text-secondary small text-uppercase">Gagal</th>
-                                    <th class="text-center py-3 text-secondary small text-uppercase">Status</th>
-                                    <th class="text-end pe-3 py-3 text-secondary small text-uppercase">Aksi</th>
+                                    <th class="ps-3 py-3 text-secondary small text-uppercase" style="width: 15%;">Waktu</th>
+                                    <th class="py-3 text-secondary small text-uppercase" style="width: 15%;">Admin</th>
+                                    <th class="py-3 text-secondary small text-uppercase" style="width: 10%;">Mode</th>
+                                    <th class="text-center py-3 text-secondary small text-uppercase" style="width: 10%;">Total</th>
+                                    <th class="text-center py-3 text-secondary small text-uppercase" style="width: 10%;">Sukses</th>
+                                    <th class="text-center py-3 text-secondary small text-uppercase" style="width: 10%;">Gagal</th>
+                                    <th class="text-center py-3 text-secondary small text-uppercase" style="width: 15%;">Status</th>
+                                    <th class="text-end pe-3 py-3 text-secondary small text-uppercase" style="width: 15%;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="blastHistoryTable">
@@ -605,8 +635,8 @@
                         </table>
                     </div>
 
-                    <!-- Mobile List -->
-                    <div class="d-md-none p-2 blast-history-list-mobile" id="blastHistoryList">
+                    <!-- Mobile List (Visible only on Mobile) -->
+                    <div class="d-md-none p-2 blast-history-list-mobile" id="blastHistoryList" style="max-height: 500px; overflow-y: auto;">
                         <!-- Data populated by JS -->
                     </div>
                     
@@ -616,6 +646,7 @@
                     </div>
                 </div>
             </div>
+        </div>
 
         <!-- Section: Withdraw -->
         <div id="section-withdraw" style="display: none;">
