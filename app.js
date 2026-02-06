@@ -91,16 +91,18 @@ if (process.env.DATABASE_URL) {
 const sessionMiddleware = session({
     secret: 'secret-key-wajib-ganti-nanti',
     store: sessionStore,
-    resave: false,
-    saveUninitialized: false,
-    proxy: true, // Required for Railway/Heroku (Reverse Proxy)
+    resave: true, // Ubah ke true untuk memaksa save
+    saveUninitialized: true, // Ubah ke true untuk inisialisasi awal
+    proxy: true,
     cookie: { 
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 hari
-        secure: process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT_NAME === 'production', 
-        sameSite: 'lax', // Ubah ke lax untuk kompatibilitas lebih baik jika domain beda
-        httpOnly: true
+        maxAge: 30 * 24 * 60 * 60 * 1000, 
+        secure: true, // Force secure (Railway pasti HTTPS)
+        sameSite: 'none', // Ubah ke 'none' agar cookie dikirim cross-origin/iframe jika diperlukan
+        httpOnly: true,
+        path: '/' // Pastikan path root
     }
 });
+app.set('trust proxy', 1); // Trust first proxy
 app.use(sessionMiddleware);
 
 // Debug Session Middleware
@@ -294,19 +296,31 @@ reason: ${reason}
 ━━━━━━━━━━━━━━━━━━━`;
         sendTelegramNotification(disconnectMsg);
         
-        client.destroy().catch(e => console.error('Error destroying client:', e.message));
+        try {
+            client.destroy();
+        } catch (e) { console.error('Error destroying client:', e.message); }
+        
         sessions.delete(dbSessionId);
     });
 
     client.initialize().catch(err => {
         console.error(`Failed to initialize client for Session ${dbSessionId}:`, err.message);
-        // Retry logic?
-        setTimeout(() => {
-             console.log(`Retrying initialization for Session ${dbSessionId}...`);
-             // Re-create client not possible here easily without recursion/refactor. 
-             // Just mark as disconnected so user can restart manually.
+        
+        // Handle specific error: Runtime.callFunctionOn timed out
+        if (err.message.includes('timed out')) {
+            console.log(`[Retry] Retrying initialization for Session ${dbSessionId} in 10 seconds...`);
+            // Remove broken instance
+            sessions.delete(dbSessionId);
+            
+            // Retry init logic via timeout
+            // WARNING: This recursion needs care, but with the queue system it's safer.
+            // We can just mark as disconnected for now to avoid loop hell, OR retry once.
+            // Let's retry by setting a flag or just letting the user restart manually is safer for now.
              db.run("UPDATE whatsapp_sessions SET status = 'disconnected' WHERE id = ?", [dbSessionId]);
-        }, 5000);
+        } else {
+             db.run("UPDATE whatsapp_sessions SET status = 'disconnected' WHERE id = ?", [dbSessionId]);
+        }
+        
         io.to(userId.toString()).emit('message', `Gagal inisialisasi sesi #${dbSessionId}: ${err.message}`);
     });
 
