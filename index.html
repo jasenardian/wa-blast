@@ -2182,12 +2182,76 @@
             Swal.fire('Info', 'Fitur withdraw akan diproses manual via admin.', 'info');
         });
 
-        // Change Password Form
+        // Change Password Form (Modal)
         document.getElementById('changePasswordForm').addEventListener('submit', function(e){
             e.preventDefault();
-            // Implement fetch
-            Swal.fire('Sukses', 'Password berhasil diubah (Simulasi)', 'success');
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if(newPassword !== confirmPassword) {
+                return Swal.fire('Gagal', 'Konfirmasi password tidak cocok', 'error');
+            }
+
+            fetchAuth('/api/change-password', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ oldPassword, newPassword })
+            }).then(r=>r.json()).then(d => {
+                if(d.status === 'success') {
+                    Swal.fire('Sukses', d.message, 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+                    document.getElementById('changePasswordForm').reset();
+                } else {
+                    Swal.fire('Gagal', d.message, 'error');
+                }
+            });
         });
+
+        // Profile Change Password Form (In Profile Section)
+        const profilePassForm = document.getElementById('profileChangePassForm');
+        if(profilePassForm) {
+            profilePassForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const oldPassword = document.getElementById('profOldPass').value;
+                const newPassword = document.getElementById('profNewPass').value;
+                const confirmPassword = document.getElementById('profConfirmPass').value;
+
+                if (newPassword !== confirmPassword) {
+                    Swal.fire('Error', 'Konfirmasi password baru tidak cocok!', 'error');
+                    return;
+                }
+
+                if (newPassword.length < 6) {
+                    Swal.fire('Error', 'Password baru minimal 6 karakter!', 'error');
+                    return;
+                }
+
+                Swal.fire({
+                    title: 'Memproses...',
+                    didOpen: () => Swal.showLoading()
+                });
+
+                fetchAuth('/api/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ oldPassword, newPassword })
+                })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.status === 'success') {
+                        Swal.fire('Sukses', d.message, 'success');
+                        profilePassForm.reset();
+                    } else {
+                        Swal.fire('Gagal', d.message, 'error');
+                    }
+                })
+                .catch(err => {
+                    Swal.fire('Error', 'Terjadi kesalahan sistem', 'error');
+                });
+            });
+        }
 
         // Init
         initUser();
