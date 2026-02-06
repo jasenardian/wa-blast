@@ -58,6 +58,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // Setup Session
 let sessionStore;
+// Ensure data directory exists for SQLite storage
+if (!fs.existsSync('./data')) {
+    fs.mkdirSync('./data');
+}
+
 if (process.env.DATABASE_URL) {
     const pgSession = require('connect-pg-simple')(session);
     const { Pool } = require('pg');
@@ -65,6 +70,11 @@ if (process.env.DATABASE_URL) {
         connectionString: process.env.DATABASE_URL,
         ssl: { rejectUnauthorized: false }
     });
+    // Handle idle client errors to prevent crash
+    pool.on('error', (err, client) => {
+        console.error('Unexpected error on idle PG client', err);
+    });
+    
     sessionStore = new pgSession({
         pool : pool,
         tableName : 'app_sessions',
@@ -166,6 +176,7 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
         puppeteer: {
             headless: true,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined, // Use installed Chromium on Railway
+            protocolTimeout: 360000, // Increase timeout to 6 minutes for slow environments
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -173,8 +184,21 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
                 '--disable-accelerated-2d-canvas',
                 '--no-first-run',
                 '--no-zygote',
-                // '--single-process', // DISABLED: Causes Protocol error (Target closed) on Railway
-                '--disable-gpu'
+                '--disable-gpu',
+                '--disable-extensions',
+                '--disable-component-extensions-with-background-pages',
+                '--disable-default-apps',
+                '--mute-audio',
+                '--no-default-browser-check',
+                '--autoplay-policy=user-gesture-required',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-notifications',
+                '--disable-background-networking',
+                '--disable-breakpad',
+                '--disable-component-update',
+                '--disable-domain-reliability',
+                '--disable-sync'
             ],
         },
         authStrategy: new LocalAuth({ clientId: clientId })
@@ -316,6 +340,10 @@ process.on('SIGTERM', () => {
 });
 
 // --- Routes ---
+
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', uptime: process.uptime() });
+});
 
 app.get('/login', (req, res) => {
     if (req.session.userId) return res.redirect('/');

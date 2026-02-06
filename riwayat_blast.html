@@ -408,9 +408,10 @@
                         ? '<span class="badge badge-completed rounded-pill">Selesai</span>' 
                         : '<span class="badge badge-running rounded-pill">Proses...</span>';
                     
-                    let modeBadge = item.sender_mode === 'random' ? '<span class="badge bg-primary">Rotasi</span>' : 
+                    let modeBadge = item.sender_mode === 'global' ? '<span class="badge text-white" style="background-color: #6f42c1;">Global</span>' :
+                                    (item.sender_mode === 'random' ? '<span class="badge bg-primary">Rotasi</span>' : 
                                     (item.sender_mode === 'specific' ? '<span class="badge bg-warning text-dark">Pinjam</span>' : 
-                                    '<span class="badge bg-secondary">Sendiri</span>');
+                                    '<span class="badge bg-secondary">Sendiri</span>'));
 
                     // 1. Render Table Row (Desktop)
                     const row = `

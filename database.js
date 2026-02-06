@@ -73,7 +73,7 @@ if (isProduction) {
         query: (text, params) => pool.query(text, params)
     };
     
-    // Init PG
+    // Init PG with Retry Logic
     initPg(pool);
 
 } else {
@@ -93,11 +93,15 @@ if (isProduction) {
 
 // --- Initialization Functions ---
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 // 1. PostgreSQL Initialization
 async function initPg(pool) {
-    try {
-        const client = await pool.connect();
+    let retries = 10;
+    while (retries > 0) {
+        let client;
         try {
+            client = await pool.connect();
             console.log("Initializing PG Tables...");
             
             await client.query(`
@@ -222,10 +226,16 @@ async function initPg(pool) {
             }
 
         } finally {
-            client.release();
+            if (client) client.release();
         }
+        console.log("PG Tables Initialized Successfully.");
+        break; // Success
     } catch (err) {
-        console.error("PG Init Error:", err);
+        console.error(`PG Init Attempt Failed (Retries left: ${retries}):`, err.message);
+        retries--;
+        if (retries === 0) console.error("PG Init Failed after multiple attempts.");
+        else await sleep(5000);
+    }
     }
 }
 
