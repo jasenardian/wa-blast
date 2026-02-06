@@ -2,6 +2,7 @@ node_modules/
 .wwebjs_auth/
 .session/
 database.sqlite
+*.db
 .env
 .DS_Store
 npm-debug.log

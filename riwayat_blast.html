@@ -341,7 +341,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     // --- UI Logic ---
-    const BASE_URL = 'https://whatsapp-blast.up.railway.app';
     const wrapper = document.getElementById("wrapper");
     document.getElementById("menu-toggle").addEventListener("click", function(e) {
         e.preventDefault();
@@ -490,7 +489,7 @@
         const tbody = document.getElementById('detailTableBody');
         tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">Memuat detail...</td></tr>';
 
-        fetch(BASE_URL + `/api/admin/blast-logs/${blastId}`, { credentials: 'include' })
+        fetch(`/api/admin/blast-logs/${blastId}`)
             .then(res => res.json())
             .then(data => {
                 tbody.innerHTML = '';

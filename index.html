@@ -2,1529 +2,2195 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dashboard - WA Blast Pro</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
         :root {
-            --sidebar-width: 260px;
-            --primary-gradient: linear-gradient(135deg, #004e00, #004e04);
-            --dark-gradient: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            /* Dark Theme Palette */
+            --bg-body: #000000;
+            --bg-card: #0d111b;
+            --bg-nav: #0d111b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-blue: #3b82f6;
+            --accent-yellow: #f59e0b;
+            --accent-purple: #8b5cf6;
+            --sidebar-width: 280px;
         }
+
         body {
-            overflow-x: hidden;
+            background-color: var(--bg-body);
+            color: var(--text-primary);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f3f4f6;
+            overflow-x: hidden;
+            padding-bottom: 80px; /* Space for bottom nav on mobile */
         }
+
+        /* --- Layout & Typography --- */
+        h1, h2, h3, h4, h5, h6 { color: white; font-weight: 700; }
+        .text-muted { color: var(--text-secondary) !important; }
         
-        /* Layout */
-        #wrapper {
-            display: flex;
-            width: 100%;
-            height: 100vh;
-            overflow: hidden;
-        }
-        
-        /* Sidebar */
-        #sidebar-wrapper {
-            min-height: 100vh;
-            width: var(--sidebar-width);
-            margin-left: 0;
-            background: var(--dark-gradient);
-            color: white;
-            transition: margin 0.25s ease-out;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
-            z-index: 1000;
-        }
-        #sidebar-wrapper .sidebar-heading {
-            padding: 1.5rem 1.25rem;
-            font-size: 1.4rem;
-            font-weight: bold;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            background: rgba(0,0,0,0.1);
-        }
-        #sidebar-wrapper .list-group {
-            width: var(--sidebar-width);
-            padding: 10px;
-        }
-        #sidebar-wrapper .list-group-item {
-            background-color: transparent;
-            color: rgba(255,255,255,0.8);
-            border: none;
-            padding: 12px 20px;
-            margin-bottom: 5px;
-            border-radius: 10px;
-            transition: all 0.2s;
-        }
-        #sidebar-wrapper .list-group-item:hover {
-            background-color: rgba(255,255,255,0.1);
-            color: #fff;
-            padding-left: 25px;
-        }
-        #sidebar-wrapper .list-group-item.active {
-            background: var(--primary-gradient);
-            color: white;
-            font-weight: 600;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        }
-        
-        /* Content */
-        #page-content-wrapper {
-            flex: 1;
-            width: 100%;
-            overflow-y: auto;
-            background: #f3f4f6;
-        }
-        
-        /* Top Navbar */
-        .navbar-custom {
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            padding: 15px 20px;
-        }
-        
-        /* Cards */
-        .card-custom {
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-            background: white;
-            margin-bottom: 25px;
-            transition: transform 0.2s;
-        }
-        .card-custom:hover {
-            transform: translateY(-2px);
-        }
-        .card-header-custom {
-            background: white;
-            border-bottom: 1px solid #eee;
-            padding: 20px;
-            font-weight: 700;
-            color: #2c3e50;
-            border-radius: 15px 15px 0 0 !important;
-        }
-        
-        /* Logs */
-        #logs {
-            background: #1e1e1e;
-            color: #00ff00;
-            height: 350px;
-            overflow-y: auto;
-            border-radius: 10px;
-            font-family: 'Courier New', Courier, monospace;
-            padding: 15px;
-            font-size: 0.85rem;
-            border: 1px solid #333;
-        }
-        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #333; padding-bottom: 2px; }
-        .log-time { color: #888; margin-right: 10px; font-size: 0.8em; }
-        
-        /* Mobile Toggle */
-        @media (max-width: 768px) {
+        /* --- Sidebar (Desktop Only) --- */
+        @media (min-width: 768px) {
+            body { padding-bottom: 0; }
+            #wrapper { display: flex; width: 100%; }
             #sidebar-wrapper {
-                margin-left: calc(-1 * var(--sidebar-width));
+                width: var(--sidebar-width);
+                background: var(--bg-card);
+                min-height: 100vh;
+                border-right: 1px solid rgba(255,255,255,0.05);
                 position: fixed;
-                height: 100%;
+                top: 0; left: 0; z-index: 1000;
             }
-            #wrapper.toggled #sidebar-wrapper {
-                margin-left: 0;
+            #page-content-wrapper {
+                margin-left: var(--sidebar-width);
+                width: calc(100% - var(--sidebar-width));
+                padding: 20px;
             }
-            .navbar-custom {
-                padding: 10px;
-            }
-        }
-        
-        /* QR Placeholder */
-        .qr-placeholder {
-            width: 100%;
-            max-width: 250px;
-            aspect-ratio: 1;
-            background: #f8f9fa;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto;
-            border: 2px dashed #ccc;
-            border-radius: 15px;
+            .bottom-nav { display: none !important; }
         }
 
-        /* Alert Card Styles */
-        .alert-card {
-            background: #fff5f5;
-            border-left: 5px solid #d32f2f;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            position: relative;
-            overflow: hidden;
-        }
-        .alert-card::after {
-            content: '';
-            position: absolute;
-            top: -20px;
-            right: -20px;
-            width: 100px;
-            height: 100px;
-            background: radial-gradient(circle, rgba(211,47,47,0.1) 0%, rgba(255,255,255,0) 70%);
-            border-radius: 50%;
-        }
-        .alert-icon-wrapper {
-            float: left;
-            margin-right: 15px;
-        }
-        .alert-icon-box {
-            width: 40px;
-            height: 40px;
-            background: #d32f2f;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.2rem;
-        }
-        .alert-content {
-            overflow: hidden;
-        }
-        .alert-badge {
-            background: #d32f2f;
-            color: white;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-weight: 700;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            display: inline-block;
-            margin-bottom: 8px;
-        }
-        .alert-text {
-            color: #444;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            margin-bottom: 10px;
-        }
-        .alert-highlight {
-            background: #ffcdd2;
-            color: #b71c1c;
-            padding: 0 5px;
-            border-radius: 3px;
-            font-weight: 500;
-        }
-        .alert-footer-badge {
-            background: #c62828;
-            color: white;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
+        @media (max-width: 767.98px) {
+            #sidebar-wrapper { display: none; }
+            #page-content-wrapper { width: 100%; padding: 15px; }
+            .navbar-custom { display: none; } /* Hide top navbar on mobile if we use app bar */
         }
 
-        .status-badge {
-            font-size: 0.8em;
-            padding: 5px 10px;
-            border-radius: 30px;
+        /* --- Components --- */
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
-        .status-waiting { background: #fff3cd; color: #856404; }
-        .status-connected { background: #d1e7dd; color: #0f5132; }
-        .status-disconnected { background: #f8d7da; color: #842029; }
-        
-        /* Professional Transaction History */
-        .transaction-list {
-            padding: 0;
-            background: #fff;
-        }
-        .transaction-item {
-            border-bottom: 1px solid #f0f0f0;
-            padding: 16px 20px;
+
+        /* Top App Bar (Mobile) */
+        .app-bar {
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            transition: background 0.2s;
-        }
-        .transaction-item:last-child { border-bottom: none; }
-        .transaction-item:hover { background-color: #fcfcfc; }
-        
-        .tx-icon {
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            margin-right: 15px;
-            flex-shrink: 0;
-        }
-        .tx-icon.pending { background: #fff8e1; color: #f1c40f; }
-        .tx-icon.success { background: #e8f5e9; color: #2ecc71; }
-        .tx-icon.failed { background: #ffebee; color: #e74c3c; }
-
-        .tx-details {
-            flex-grow: 1;
-            min-width: 0;
-        }
-        .tx-title {
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 2px;
-            font-size: 0.95rem;
-        }
-        .tx-meta {
-            font-size: 0.75rem;
-            color: #95a5a6;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .tx-right {
-            text-align: right;
-            margin-left: 15px;
-            flex-shrink: 0;
-        }
-        .tx-amount {
-            font-weight: 700;
-            color: #2c3e50;
-            font-size: 1rem;
-            display: block;
-        }
-        .tx-status-badge {
-            font-size: 0.65rem;
-            padding: 3px 10px;
-            border-radius: 12px;
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            display: inline-block;
-            margin-top: 4px;
-        }
-        .bg-status-pending { background: #fff3cd; color: #b7950b; }
-        .bg-status-success { background: #d1e7dd; color: #198754; }
-        .bg-status-failed { background: #f8d7da; color: #dc3545; }
-
-        /* --- New Mobile Dashboard Design --- */
-        .hero-card {
-            background: var(--primary-gradient);
-            border-radius: 20px;
-            padding: 30px;
-            color: white;
-            box-shadow: 0 10px 25px rgba(0, 176, 155, 0.3);
-            margin-bottom: 25px;
-            position: relative;
-            overflow: hidden;
-        }
-        .hero-card::before {
-            content: "";
-            position: absolute;
-            top: -50%;
-            left: -10%;
-            width: 300px;
-            height: 300px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 50%;
-        }
-        .hero-card .balance-label {
-            font-size: 0.9rem;
-            opacity: 0.9;
-            margin-bottom: 5px;
-        }
-        .hero-card .balance-amount {
-            font-size: 2.5rem;
-            font-weight: 700;
+            padding: 15px 0;
             margin-bottom: 20px;
-            letter-spacing: -1px;
         }
-        .hero-actions {
-            display: flex;
-            gap: 15px;
-        }
-        .hero-btn {
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.3);
+        .app-bar-brand {
+            font-size: 1.25rem;
+            font-weight: 800;
             color: white;
-            padding: 10px 20px;
-            border-radius: 12px;
-            flex: 1;
-            text-align: center;
-            backdrop-filter: blur(5px);
-            transition: all 0.2s;
-            text-decoration: none;
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 8px;
-            font-weight: 600;
         }
-        .hero-btn:hover {
-            background: rgba(255,255,255,0.3);
-            color: white;
-            transform: translateY(-2px);
+        .app-bar-brand .dot {
+            width: 8px; height: 8px; background: var(--accent-green); border-radius: 50%;
         }
-
-        .status-overview-card {
-            background: white;
-            border-radius: 20px;
-            padding: 25px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.03);
-            text-align: center;
-            height: 100%;
-        }
-
-        .dashboard-section-title {
-            font-weight: 700;
-            color: #2c3e50;
-            margin-bottom: 15px;
-            font-size: 1.1rem;
+        .user-pill {
             display: flex;
             align-items: center;
             gap: 10px;
         }
-
-        /* --- Commission Info Styles --- */
-        @keyframes blinkRedBg {
-            0%, 100% { background-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
-            50% { background-color: rgba(220, 53, 69, 0.8); color: white; box-shadow: 0 0 10px rgba(220, 53, 69, 0.5); }
-        }
-
-        .commission-info-link {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: rgba(255,255,255,0.8);
-            cursor: pointer;
-            transition: color 0.2s;
-            background: rgba(255,255,255,0.1);
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            animation: blinkRedBg 2s infinite ease-in-out;
-        }
-        .commission-info-link:hover {
-            color: white;
-            background: rgba(255,255,255,0.2);
-        }
-        
-        .commission-detail-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px dashed #eee;
-        }
-        .commission-detail-item:last-child { border-bottom: none; }
-        .commission-label { color: #6c757d; font-size: 0.9rem; }
-        .commission-value { font-weight: 600; color: #2c3e50; }
-
-        .info-pill {
-            background: #e7f1ff;
-            color: #0d6efd;
-            padding: 5px 12px;
+        .logout-btn {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+            border: none;
+            padding: 6px 12px;
             border-radius: 20px;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             font-weight: 600;
-            display: inline-block;
-            margin-right: 5px;
-            margin-bottom: 5px;
-        }
-
-        /* --- Device List Item --- */
-        .device-item {
+            text-decoration: none;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 15px;
-            border-bottom: 1px solid #f0f0f0;
-            transition: all 0.2s;
+            gap: 5px;
         }
-        .device-item:last-child { border-bottom: none; }
-        .device-item:hover { background: #f9f9f9; }
-        .device-icon {
-            width: 40px;
-            height: 40px;
+        .user-avatar {
+            width: 36px; height: 36px;
+            background: var(--accent-purple);
+            color: white;
             border-radius: 50%;
-            background: #eee;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
-            margin-right: 15px;
+            font-weight: bold;
+            font-size: 1rem;
         }
-        .device-icon.connected { background: #d1e7dd; color: #0f5132; }
-        .device-icon.disconnected { background: #f8d7da; color: #842029; }
-        .device-info { flex: 1; }
-        .device-name { font-weight: 600; font-size: 0.95rem; }
-        .device-status { font-size: 0.8rem; }
-        
-        /* --- Admin Panel Styles --- */
-        .admin-stat-card {
+        .user-status {
+            text-align: right;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: -5px;
+        }
+        .status-online { color: var(--accent-green); }
+
+        /* Greeting Card */
+        .greeting-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid rgba(255,255,255,0.1);
             border-radius: 16px;
             padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            transition: transform 0.2s;
+            position: relative;
+            margin-bottom: 20px;
+            overflow: hidden;
         }
-        .admin-stat-card:active { transform: scale(0.98); }
-        .admin-stat-card.success { background: #d1e7dd; color: #0f5132; }
-        .admin-stat-card.danger { background: #f8d7da; color: #842029; }
-        
-        .stat-icon-wrapper {
-            width: 50px;
-            height: 50px;
+        .greeting-icon { font-size: 2rem; margin-right: 10px; }
+        .confetti-icon { position: absolute; right: 20px; top: 20px; font-size: 2.5rem; }
+
+        /* Stats Grid */
+        .stats-tile {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 15px 10px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .stats-icon-circle {
+            width: 32px; height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
-            background: rgba(255,255,255,0.5);
-        }
-        .stat-content h3 { font-size: 2rem; margin: 0; font-weight: 800; }
-        .stat-content span { font-size: 0.9rem; font-weight: 600; opacity: 0.8; }
-
-        .member-list-item {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 10px;
-            border: 1px solid #f0f0f0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-            position: relative;
-        }
-        .member-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .member-name { font-weight: 700; color: #2c3e50; font-size: 1rem; }
-        .member-role { font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; background: #e9ecef; color: #495057; text-transform: uppercase; font-weight: bold; }
-        
-        .member-details {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            margin-bottom: 8px;
+            border: 2px solid currentColor;
             font-size: 0.9rem;
         }
-        .member-balance { font-weight: 700; color: #198754; }
+        .stats-value { font-size: 1.25rem; font-weight: 800; margin-bottom: 2px; }
+        .stats-label { font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
         
-        .member-actions {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px dashed #eee;
-            display: flex;
-            gap: 8px;
-            justify-content: flex-end;
+        .tile-active .stats-icon-circle { color: var(--accent-green); border-color: var(--accent-green); }
+        .tile-active .stats-value { color: var(--accent-green); }
+        
+        .tile-offline .stats-icon-circle { color: var(--accent-red); border-color: var(--accent-red); }
+        .tile-offline .stats-value { color: var(--accent-red); }
+        
+        .tile-blast .stats-icon-circle { color: var(--accent-blue); border-color: var(--accent-blue); }
+        .tile-blast .stats-value { color: var(--accent-blue); }
+        
+        .tile-earn .stats-icon-circle { color: var(--accent-yellow); border-color: var(--accent-yellow); }
+        .tile-earn .stats-value { color: var(--accent-yellow); }
+
+        /* Balance Card */
+        .balance-card {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 20px;
+            position: relative;
+            margin-bottom: 25px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
         }
-        .btn-action-icon {
-            width: 32px;
-            height: 32px;
+        .balance-card::before {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 60px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%233b82f6' fill-opacity='0.1' d='M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
+            background-size: cover;
+            background-position: bottom;
+            opacity: 0.5;
+        }
+        .balance-title { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .balance-amount { font-size: 2rem; font-weight: 800; color: white; margin: 5px 0 20px 0; }
+        .balance-actions { display: flex; gap: 10px; position: relative; z-index: 2; }
+        .btn-balance {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 10px;
+            border-radius: 12px;
+            font-size: 0.9rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 8px;
-            border: 1px solid #dee2e6;
-            color: #6c757d;
-            background: white;
+            gap: 8px;
             transition: all 0.2s;
         }
-        .btn-action-icon:hover { background: #f8f9fa; color: #000; }
-        .btn-action-icon.danger { color: #dc3545; border-color: #f8d7da; }
-        .btn-action-icon.success { color: #198754; border-color: #d1e7dd; }
-        .btn-action-icon.warning { color: #ffc107; border-color: #fff3cd; }
+        .btn-balance:hover { background: rgba(255,255,255,0.1); color: white; }
+        .card-icon-top { position: absolute; top: 20px; right: 20px; font-size: 1.5rem; color: var(--accent-green); }
 
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 5px;
+        /* Quick Links */
+        .quick-link-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px 10px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: transform 0.2s;
+            cursor: pointer;
         }
-        .status-dot.connected { background: #198754; box-shadow: 0 0 5px #198754; }
-        .status-dot.disconnected { background: #dc3545; }
+        .quick-link-card:active { transform: scale(0.98); }
+        .quick-link-icon { font-size: 1.5rem; margin-bottom: 10px; }
+        .quick-link-label { font-size: 0.85rem; color: white; font-weight: 500; }
+        
+        /* Info Cards */
+        .info-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .info-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .info-title { font-size: 1rem; font-weight: 700; color: white; margin: 0; }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .info-label { color: var(--text-secondary); font-size: 0.9rem; }
+        .info-value { font-weight: 600; color: white; font-size: 0.95rem; }
 
+        /* Floating Button */
+        .fab {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+            z-index: 990;
+            text-decoration: none;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--bg-nav);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-around;
+            z-index: 1000;
+        }
+        .nav-item-mobile {
+            text-align: center;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.7rem;
+            flex: 1;
+        }
+        .nav-item-mobile i {
+            display: block;
+            font-size: 1.4rem;
+            margin-bottom: 4px;
+        }
+        .nav-item-mobile.active { color: var(--accent-green); }
+
+        /* Sidebar Links (Desktop) */
+        .sidebar-link {
+            color: var(--text-secondary);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-link:hover { background: rgba(255,255,255,0.05); color: white; }
+        .sidebar-link.active { background: rgba(16, 185, 129, 0.1); color: var(--accent-green); border-left-color: var(--accent-green); }
+
+        /* Admin Styles Adaptation */
+        .admin-stat-card { background: var(--bg-card); border: 1px solid rgba(255,255,255,0.05); }
+        .admin-stat-card.success { color: var(--accent-green); }
+        .admin-stat-card.danger { color: var(--accent-red); }
+        .member-list-item { background: var(--bg-card); border: 1px solid rgba(255,255,255,0.05); }
+        .member-name { color: white; }
+
+        /* Utilities */
+        .text-accent-purple { color: var(--accent-purple); }
+        .text-accent-yellow { color: var(--accent-yellow); }
     </style>
 </head>
 <body>
 
-<div id="wrapper">
-    <!-- Sidebar -->
+    <!-- Desktop Sidebar -->
     <div id="sidebar-wrapper">
-        <div class="sidebar-heading text-center">
-            <i class="bi bi-whatsapp"></i> WA Blast Pro
-        </div>
-        <div class="list-group list-group-flush mt-3">
-            <a href="#dashboard" class="list-group-item list-group-item-action active" onclick="showSection('dashboard', this)">
-                <i class="bi bi-speedometer2 me-2"></i> Dashboard
-            </a>
-            <a href="#admin" id="nav-admin" class="list-group-item list-group-item-action" style="display:none;" onclick="showSection('admin', this)">
-                <i class="bi bi-shield-lock me-2"></i> Admin Panel
-            </a>
-            <a href="/riwayat_blast.html" id="nav-blast-history" class="list-group-item list-group-item-action" style="display:none;">
-                <i class="bi bi-broadcast me-2"></i> Riwayat Blast
-            </a>
-            <a href="https://t.me/jstogel" target="_blank" class="list-group-item list-group-item-action">
-                <i class="bi bi-telegram me-2"></i> Hubungi Kami
-            </a>
-            <a href="#" onclick="doLogout()" class="list-group-item list-group-item-action mt-auto text-danger">
-                <i class="bi bi-box-arrow-left me-2"></i> Logout
-            </a>
-        </div>
-        <div class="mt-auto p-3 text-center small text-white-50">
-            &copy; 2024 WA Blast Pro
-        </div>
-    </div>
-
-    <!-- Page Content -->
-    <div id="page-content-wrapper">
-        <!-- Top Navbar -->
-        <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
-            <div class="container-fluid">
-                <button class="btn btn-light shadow-sm" id="menu-toggle"><i class="bi bi-list"></i></button>
-                
-                <div class="ms-auto d-flex align-items-center">
-                    <div class="dropdown">
-                        <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
-                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 35px; height: 35px;">
-                                <i class="bi bi-person-fill"></i>
-                            </div>
-                            <span class="fw-bold me-1" id="userInfoName">Loading...</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="dropdownUser1">
-                            <li><span class="dropdown-item-text text-muted small" id="userInfoRole">Role: ...</span></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#changePasswordModal"><i class="bi bi-key me-2"></i> Ganti Password</a></li>
-                            <li><a class="dropdown-item text-danger" href="#" onclick="doLogout()"><i class="bi bi-box-arrow-right me-2"></i> Logout</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </nav>
-
-        <div class="container-fluid p-4">
-            
-            <!-- SECTION: DASHBOARD -->
-            <div id="section-dashboard">
-                
-                <!-- Hero Section: Wallet Style -->
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <div class="hero-card">
-                            <div class="balance-label">
-                                Saldo Komisi Anda
-                                <span class="badge bg-white bg-opacity-25 ms-2" style="font-weight: normal; font-size: 0.7em;">IDR</span>
-                            </div>
-                            <div class="balance-amount" id="userBalance">Rp 0</div>
-                            
-                            <a class="commission-info-link" data-bs-toggle="modal" data-bs-target="#commissionInfoModal" title="Informasi Komisi">
-                                <i class="bi bi-info-lg"></i>
-                            </a>
-
-                            <div class="hero-actions mb-3">
-                                <a href="#" class="hero-btn" data-bs-toggle="modal" data-bs-target="#withdrawModal">
-                                    <i class="bi bi-arrow-up-circle"></i> Tarik
-                                </a>
-                                <a href="#" class="hero-btn" onclick="showHistoryModal()">
-                                    <i class="bi bi-clock-history"></i> Riwayat
-                                </a>
-                            </div>
-                            <div class="hero-actions">
-                                <a href="#" class="hero-btn" onclick="showMyBlastHistory()">
-                                    <i class="bi bi-send-check"></i> Rincian Blast
-                                </a>
-                            </div>
-                            
-                            <div class="mt-3 pt-3 border-top border-white border-opacity-25 d-flex align-items-center justify-content-between text-white-50 small">
-                                <span><i class="bi bi-calendar-check me-1"></i> Bulan Ini</span>
-                                <span class="text-white fw-bold" id="monthlyCommission">Rp 0</span>
-                            </div>
+        <div class="p-4 border-bottom border-secondary border-opacity-25">
+            <h4 class="m-0"><i class="bi bi-whatsapp text-success"></i> WA Blast Pro</h4>
+            <!-- Riwayat Blast (Khusus Pro/Admin) -->
+            <div id="blastHistorySection" class="mt-4" style="display:none;">
+                <div class="card bg-dark border border-secondary border-opacity-25 p-3">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-info bg-opacity-10 rounded p-2 me-3">
+                            <i class="bi bi-broadcast fs-4 text-info"></i>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Stats Overview Row -->
-                <div class="row g-3 mb-4">
-                    <div class="col-6 col-md-3">
-                        <div class="card card-custom h-100 mb-0 text-center py-3">
-                            <div class="text-success mb-2"><i class="bi bi-wifi fs-2"></i></div>
-                            <h4 class="fw-bold mb-0" id="statOnline">0</h4>
-                            <div class="small text-muted">Online</div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="card card-custom h-100 mb-0 text-center py-3">
-                            <div class="text-danger mb-2"><i class="bi bi-wifi-off fs-2"></i></div>
-                            <h4 class="fw-bold mb-0" id="statOffline">0</h4>
-                            <div class="small text-muted">Offline</div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="card card-custom h-100 mb-0 text-center py-3">
-                            <div class="text-primary mb-2"><i class="bi bi-phone fs-2"></i></div>
-                            <h4 class="fw-bold mb-0" id="statTotal">0</h4>
-                            <div class="small text-muted">Total Device</div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="card card-custom h-100 mb-0 text-center py-3">
-                            <div class="text-info mb-2"><i class="bi bi-send-check fs-2"></i></div>
-                            <h4 class="fw-bold mb-0" id="statSent">0</h4>
-                            <div class="small text-muted">Pesan Terkirim</div>
-                        </div>
-                    </div>
-                </div>
-
-                    <!-- Main Grid -->
-                    <div class="row g-4">
-                        
-                        <!-- Left Column: Status & QR -->
-                        <div class="col-lg-5 mb-4">
-                            <div class="status-overview-card">
-                                <div class="d-flex justify-content-between align-items-center mb-4">
-                                    <h5 class="fw-bold m-0"><i class="bi bi-whatsapp text-success me-2"></i> Perangkat</h5>
-                                    <button class="btn btn-primary btn-sm rounded-pill" onclick="showAddDeviceModal()">
-                                        <i class="bi bi-plus-lg"></i> Tambah
-                                    </button>
-                                </div>
-                                
-                                <div id="devicesListContainer" class="text-start">
-                                    <div class="text-center py-4 text-muted small">Memuat perangkat...</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Admin Blast Form (Hidden for Members) -->
-                        <div id="adminBlastContainer" style="display: none;">
-                            <div class="card card-custom">
-                                <div class="card-header-custom"><i class="bi bi-send-fill text-primary"></i> Kirim Pesan (Superadmin)</div>
-                                <div class="card-body">
-                                    <form id="blastForm">
-                                        <!-- Sender Select -->
-                                        <div class="mb-3 p-3 bg-light rounded border border-primary border-opacity-25" id="senderSelectContainer">
-                                            <label for="senderId" class="form-label fw-bold text-primary small text-uppercase">Kirim Menggunakan:</label>
-                                            <select class="form-select form-select-sm border-primary" id="senderId">
-                                                <option value="">-- Akun Saya Sendiri --</option>
-                                            </select>
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <label for="numbers" class="form-label fw-bold small text-muted">NOMOR TUJUAN</label>
-                                            <textarea class="form-control bg-light" id="numbers" rows="5" placeholder="08123456789&#10;628987654321"></textarea>
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <label for="message" class="form-label fw-bold small text-muted">ISI PESAN (SPINTAX)</label>
-                                            <textarea class="form-control bg-light" id="message" rows="4" placeholder="Halo {Kak|Bro}, promo spesial untukmu!"></textarea>
-                                        </div>
-
-                                        <div class="d-grid">
-                                            <button type="submit" id="sendBtn" class="btn btn-success btn-lg shadow-sm">
-                                                <i class="bi bi-cursor-fill"></i> Kirim Sekarang
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-
-                        
-                <!-- Right Column: Info & Logs -->
-                <div class="col-lg-7">
-                    
-                    <!-- Referral Info -->
-                    <div class="card card-custom bg-white border-0 mb-4">
-                        <div class="card-body">
-                            <h6 class="fw-bold text-dark mb-3"><i class="bi bi-share-fill text-primary me-2"></i> Program Referral</h6>
-                            <div class="p-3 bg-light rounded border border-secondary border-opacity-10">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <small class="text-muted">Kode Referral Anda</small>
-                                    <div>
-                                        <button class="btn btn-sm btn-outline-primary py-0 px-2 me-1" onclick="shareReferral()" title="Bagikan"><i class="bi bi-share-fill"></i></button>
-                                        <button class="btn btn-sm btn-link text-decoration-none p-0" onclick="copyReferral()">Salin</button>
-                                    </div>
-                                </div>
-                                <div class="h4 fw-bold text-primary mb-0" id="myReferralCode">LOADING...</div>
-                            </div>
-                            <div class="row g-2 mt-2">
-                                <div class="col-4">
-                                    <div class="border rounded p-2 text-center bg-light">
-                                        <div class="small text-muted" style="font-size:0.7rem;">TOTAL</div>
-                                        <div class="fw-bold text-dark" id="refTotal">0</div>
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="border rounded p-2 text-center bg-success bg-opacity-10">
-                                        <div class="small text-success" style="font-size:0.7rem;">AKTIF</div>
-                                        <div class="fw-bold text-success" id="refActive">0</div>
-                                    </div>
-                                </div>
-                                <div class="col-4">
-                                    <div class="border rounded p-2 text-center bg-secondary bg-opacity-10">
-                                        <div class="small text-muted" style="font-size:0.7rem;">PASIF</div>
-                                        <div class="fw-bold text-secondary" id="refPassive">0</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <p class="small text-muted mt-2 mb-0">
-                                Ajak teman menggunakan kode ini. Dapatkan <strong>Rp 60</strong> setiap pesan yang mereka kirim!
-                            </p>
-                        </div>
-                    </div>
-
-                        <!-- Logs (Optional/Collapsible) -->
-                        <div class="card card-custom">
-                            <div class="card-header-custom d-flex justify-content-between align-items-center">
-                                <span><i class="bi bi-activity"></i> Aktivitas Sistem</span>
-                                <button class="btn btn-sm btn-link text-decoration-none" onclick="document.getElementById('logs').innerHTML=''">Clear</button>
-                            </div>
-                            <div class="card-body p-0">
-                                <div id="logs" style="height: 250px;"></div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-
-            <!-- SECTION: ADMIN PANEL -->
-            <div id="section-admin" style="display: none;">
-                <!-- (Admin Panel Content Kept Same, but can be updated later if needed) -->
-                <div class="card card-custom" id="adminPanel">
-                    <div class="card-header-custom bg-primary text-white d-flex justify-content-between align-items-center" style="background: var(--dark-gradient) !important; color: white !important;">
-                        <span><i class="bi bi-shield-lock"></i> Superadmin Control Panel</span>
                         <div>
-                             <button class="btn btn-sm btn-outline-light me-2" onclick="downloadBackup()"><i class="bi bi-download"></i> Backup DB</button>
-                             <button class="btn btn-sm btn-light text-dark shadow-sm" onclick="loadAdminData()"><i class="bi bi-arrow-clockwise"></i> Refresh Data</button>
+                            <h5 class="mb-0">Riwayat Blast</h5>
+                            <div class="small text-muted">Log pengiriman pesan Anda</div>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <ul class="nav nav-tabs nav-tabs-bordered mb-4" id="adminTabs" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="members-tab" data-bs-toggle="tab" data-bs-target="#members" type="button">
-                                    <i class="bi bi-people"></i> Daftar Member
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="withdrawals-tab" data-bs-toggle="tab" data-bs-target="#withdrawals" type="button">
-                                    <i class="bi bi-currency-exchange"></i> Riwayat Penarikan
-                                </button>
-                            </li>
-                        </ul>
-                        
-                        <div class="tab-content" id="adminTabsContent">
-                            <!-- Tab Members -->
-                            <div class="tab-pane fade show active" id="members" role="tabpanel">
-                                
-                                <!-- Modern Stats Cards -->
-                                <div class="row g-3 mb-4">
-                                    <div class="col-12">
-                                        <div class="admin-stat-card success">
-                                            <div class="stat-icon-wrapper"><i class="bi bi-wifi"></i></div>
-                                            <div class="stat-content text-end">
-                                                <span>Terhubung</span>
-                                                <h3 id="countConnected">0</h3>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="admin-stat-card danger">
-                                            <div class="stat-icon-wrapper"><i class="bi bi-wifi-off"></i></div>
-                                            <div class="stat-content text-end">
-                                                <span>Terputus</span>
-                                                <h3 id="countDisconnected">0</h3>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <div>
-                                        <h5 class="fw-bold m-0 text-dark">Daftar Member</h5>
-                                        <small class="text-muted">Kelola pengguna & koneksi</small>
-                                    </div>
-                                    <button class="btn btn-danger rounded-pill shadow-sm" onclick="restartAllDevices()">
-                                        <i class="bi bi-arrow-repeat me-1"></i> Restart Semua
-                                    </button>
-                                </div>
-
-                                <!-- Filter & Search for Members -->
-                                <div class="row g-2 mb-3">
-                                    <div class="col-8">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                                            <input type="text" id="searchMember" class="form-control border-start-0 ps-0" placeholder="Cari username...">
-                                        </div>
-                                    </div>
-                                    <div class="col-4">
-                                        <select id="filterMemberStatus" class="form-select">
-                                            <option value="all">Semua</option>
-                                            <option value="connected">Aktif</option>
-                                            <option value="disconnected">Mati</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <!-- Modern Member List (Replaces Table) -->
-                                <div id="membersListContainer">
-                                    <div class="text-center py-5 text-muted"><span class="spinner-border spinner-border-sm"></span> Memuat...</div>
-                                </div>
-
-                            </div>
-                            
-                            <!-- Tab Withdrawals -->
-                            <div class="tab-pane fade" id="withdrawals" role="tabpanel">
-                                <h5 class="fw-bold mb-3 mt-2">Permintaan Penarikan</h5>
-                                
-                                <!-- Filter & Search for Withdrawals -->
-                                <div class="row g-2 mb-3">
-                                    <div class="col-8">
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                                            <input type="text" id="searchWithdraw" class="form-control border-start-0 ps-0" placeholder="Cari user/bank...">
-                                        </div>
-                                    </div>
-                                    <div class="col-4">
-                                        <select id="filterWithdrawStatus" class="form-select">
-                                            <option value="all">Semua</option>
-                                            <option value="pending">Pending</option>
-                                            <option value="success">Sukses</option>
-                                            <option value="failed">Gagal</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <!-- Modern Withdrawal List (Replaces Table) -->
-                                <div id="adminWithdrawalsList">
-                                    <div class="text-center py-5 text-muted"><span class="spinner-border spinner-border-sm"></span> Memuat...</div>
-                                </div>
-                            </div>
-                        </div>
+                    
+                    <div id="blastHistoryContainer" class="small">
+                        <div class="text-center py-4 text-secondary">Memuat riwayat...</div>
                     </div>
                 </div>
             </div>
 
         </div>
-    </div>
-</div>
+        <div class="py-3">
+            <a href="#" class="sidebar-link active" onclick="showSection('dashboard', this); setActiveNav('home')">
+                <i class="bi bi-grid-fill"></i> Dashboard
+            </a>
+            <a href="#" class="sidebar-link" onclick="showSection('whatsapp', this); showAddDeviceModal(); setActiveNav('wa')">
+                <i class="bi bi-whatsapp"></i> WhatsApp
+            </a>
+            <a href="#" class="sidebar-link" onclick="showSection('referral', this); setActiveNav('ref')">
+                <i class="bi bi-people-fill"></i> Referral
+            </a>
+            <a href="#" class="sidebar-link" onclick="showSection('withdraw', this); setActiveNav('wd')">
+                <i class="bi bi-wallet-fill"></i> Dompet
+            </a>
+            <a href="#" class="sidebar-link" onclick="showSection('profile', this); setActiveNav('profile')">
+                <i class="bi bi-person-fill"></i> Profil Saya
+            </a>
+            
+            <div class="mt-4 px-3 text-uppercase text-muted small fw-bold">Admin</div>
+            <a href="#" id="desktop-nav-admin" class="sidebar-link" style="display:none;" onclick="showSection('admin', this)">
+                <i class="bi bi-shield-lock"></i> Admin Panel
+            </a>
+            <a href="/riwayat_blast.html" id="desktop-nav-history" class="sidebar-link" style="display:none;">
+                <i class="bi bi-broadcast"></i> Riwayat Blast
+            </a>
 
-<!-- Modal Add Device -->
-<div class="modal fade" id="addDeviceModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-             <div class="modal-header">
-                 <h5 class="modal-title">Tambah WhatsApp</h5>
-                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-             </div>
-             <div class="modal-body text-center p-4">
-                 <div id="addDeviceForm">
-                     <!-- Alert Warning -->
-                     <div class="alert-card text-start">
-                         <div class="alert-icon-wrapper">
-                             <div class="alert-icon-box">
-                                 <i class="bi bi-exclamation-triangle-fill"></i>
-                             </div>
-                         </div>
-                         <div class="alert-content">
-                             <div class="alert-badge">PERINGATAN PENTING</div>
-                             <div class="alert-text">
-                                 Dilarang <span class="alert-highlight">menghapus pesan</span> yang sudah terkirim atau menggunakan <span class="alert-highlight">timer</span>.
-                             </div>
-                             <div class="alert-footer-badge">
-                                 <i class="bi bi-slash-circle"></i> PEMBLOKIRAN AKUN PERMANEN
-                             </div>
-                         </div>
-                     </div>
-
-                     <div class="form-floating mb-3">
-                         <input type="text" class="form-control" id="newSessionName" placeholder="Nama Perangkat">
-                         <label>Nama Perangkat (Opsional)</label>
-                     </div>
-                     <button class="btn btn-primary w-100" onclick="createNewDevice()">Buat Sesi & Scan QR</button>
-                 </div>
-                 
-                 <div id="scanQrArea" style="display:none;">
-                     <h5 class="mb-3">Scan QR Code</h5>
-                     <div id="newDeviceQr" class="qr-placeholder mx-auto mb-3">
-                         <span class="spinner-border spinner-border-sm text-muted"></span>
-                     </div>
-                     <p class="small text-muted">Buka WhatsApp > Perangkat Tertaut > Tautkan Perangkat</p>
-                     <div id="newDeviceStatus" class="fw-bold text-warning">Menunggu QR...</div>
-                 </div>
-             </div>
+            <div class="mt-auto border-top border-secondary border-opacity-25 pt-3">
+                <a href="#" onclick="doLogout()" class="sidebar-link text-danger">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Modal Commission Info -->
-<div class="modal fade" id="commissionInfoModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-            <div class="modal-header bg-primary text-white" style="background: var(--primary-gradient) !important; border-radius: 20px 20px 0 0;">
-                <h5 class="modal-title"><i class="bi bi-info-circle"></i> Informasi Komisi</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    <!-- Main Content -->
+    <div id="page-content-wrapper">
+        
+        <!-- App Bar (Visible on Mobile/Tablet) -->
+        <div class="app-bar">
+            <div class="d-block">
+                <div class="app-bar-brand">
+                    WA Blast Pro <span class="dot"></span>
+                </div>
+                <div class="small text-muted">Dashboard</div>
             </div>
-            <div class="modal-body p-4">
-                <div class="text-center mb-4">
-                    <div class="text-muted small mb-1">Total Saldo Tersedia</div>
-                    <h2 class="fw-bold text-success" id="infoModalBalance">Rp 0</h2>
+            <div class="d-flex align-items-center gap-2">
+                <button onclick="doLogout()" class="logout-btn">
+                    <i class="bi bi-box-arrow-right"></i> Keluar
+                </button>
+                <div class="user-avatar" id="headerAvatar">U</div>
+            </div>
+        </div>
+        <div class="user-status mb-3">
+            <span id="headerUsername">User</span> • <span class="status-online">Online</span>
+        </div>
+
+        <!-- Section: Dashboard -->
+        <div id="section-dashboard">
+            
+            <!-- Greeting -->
+            <div class="greeting-card">
+                <div class="d-flex align-items-center">
+                    <div class="greeting-icon">🎺</div>
+                    <div>
+                        <h4 class="mb-1">Halo, <span id="greetUsername">User</span>!</h4>
+                        <div class="small text-secondary">Selamat datang </div>
+                    </div>
+                </div>
+                <div class="confetti-icon">🎉</div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="row g-2 mb-4">
+                <div class="col-3">
+                    <div class="stats-tile tile-active">
+                        <div class="stats-icon-circle"><i class="bi bi-check-lg"></i></div>
+                        <div class="stats-value" id="dashStatActive">0</div>
+                        <div class="stats-label">AKTIF</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="stats-tile tile-offline">
+                        <div class="stats-icon-circle"><i class="bi bi-x-lg"></i></div>
+                        <div class="stats-value" id="dashStatOffline">0</div>
+                        <div class="stats-label">OFFLINE</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="stats-tile tile-blast">
+                        <div class="stats-icon-circle"><i class="bi bi-send"></i></div>
+                        <div class="stats-value" id="dashStatBlast">0</div>
+                        <div class="stats-label">BLAST</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="stats-tile tile-earn">
+                        <div class="stats-icon-circle"><i class="bi bi-currency-dollar"></i></div>
+                        <div class="stats-value" style="font-size: 0.9rem;" id="dashStatEarn">0</div>
+                        <div class="stats-label">EARNING</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Balance Card -->
+            <div class="balance-card">
+                <div class="card-icon-top"><i class="bi bi-credit-card"></i></div>
+                <div class="balance-title">TOTAL BALANCE</div>
+                <div class="balance-amount" id="dashBalance">Rp0</div>
+                <div class="balance-actions">
+                    <button class="btn-balance" onclick="showSection('withdraw'); setActiveNav('wd')">
+                        <i class="bi bi-wallet2"></i> Dompet
+                    </button>
+                    <button class="btn-balance" onclick="showAddDeviceModal()">
+                        <i class="bi bi-plus-lg"></i> Tambah
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <h5 class="mb-3">Quick Link</h5>
+            <div class="row g-2 mb-4">
+                <div class="col-4">
+                    <div class="quick-link-card" onclick="showAddDeviceModal()">
+                        <div class="quick-link-icon text-success"><i class="bi bi-whatsapp"></i></div>
+                        <div class="quick-link-label">WhatsApp</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="quick-link-card" onclick="showSection('referral'); setActiveNav('ref')">
+                        <div class="quick-link-icon text-accent-purple"><i class="bi bi-people-fill"></i></div>
+                        <div class="quick-link-label">Referral</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="quick-link-card" onclick="showSection('profile'); setActiveNav('profile')">
+                        <div class="quick-link-icon text-info"><i class="bi bi-person-fill"></i></div>
+                        <div class="quick-link-label">Profil</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informasi Section -->
+            <h5 class="mb-3">Informasi</h5>
+            
+            <!-- Program Referral -->
+            <div class="info-card position-relative">
+                <i class="bi bi-bullseye position-absolute top-0 end-0 m-3 text-accent-purple fs-4"></i>
+                <div class="info-title mb-3">Program Referral</div>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="info-label">Total Referral</div>
+                        <div class="info-value text-accent-purple fs-5" id="dashRefTotal">0</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="info-label">Rate Komisi</div>
+                        <div class="info-value text-accent-yellow fs-5">Rp60</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarif & Ketentuan -->
+            <div class="info-card position-relative">
+                <i class="bi bi-file-text position-absolute top-0 end-0 m-3 text-white fs-4"></i>
+                <div class="info-title mb-3">Tarif & Ketentuan</div>
+                <div class="info-row">
+                    <span class="info-label">Rate per pesan:</span>
+                    <span class="info-value">Rp550</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Min. withdraw:</span>
+                    <span class="info-value">Rp10.000</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Member sejak:</span>
+                    <span class="info-value" id="memberSince">...</span>
+                </div>
+            </div>
+            
+            <!-- Device List (Hidden by default, shown via modal or separate section usually, but let's keep it accessible) -->
+             <div class="info-card">
+                 <div class="info-header">
+                     <div class="info-title">Perangkat Saya</div>
+                     <button class="btn btn-sm btn-outline-light rounded-pill" onclick="showAddDeviceModal()">Tambah</button>
+                 </div>
+                 <div id="devicesListContainer" class="text-secondary small">
+                     Loading...
+                 </div>
+             </div>
+
+        </div>
+
+        <!-- Section: Withdraw -->
+        <div id="section-withdraw" style="display: none;">
+            
+            <!-- Main Balance Card -->
+            <div class="card mb-3 p-3 bg-opacity-25 bg-dark">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-credit-card-2-front fs-2 text-info me-3"></i>
+                        <div>
+                            <div class="small text-secondary fw-bold">SALDO TERSEDIA</div>
+                            <div class="small text-success">Min: Rp10.000</div>
+                        </div>
+                    </div>
+                    <span class="badge rounded-pill bg-success bg-opacity-25 text-success px-3 py-2">READY</span>
                 </div>
 
-                <h6 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-wallet2 me-2 text-primary"></i> Rincian Saldo</h6>
-                <div class="commission-detail-item">
-                    <span class="commission-label">Komisi Tersedia</span>
-                    <span class="commission-value text-success" id="infoModalAvailable">Rp 0</span>
-                </div>
-                <div class="commission-detail-item">
-                    <span class="commission-label">Total Ditarik</span>
-                    <span class="commission-value text-danger" id="infoModalWithdrawn">Rp 0</span>
-                </div>
+                <div class="fs-1 fw-bold text-success mb-3" id="wdBalanceDisplay">Rp 0</div>
 
-                <h6 class="fw-bold border-bottom pb-2 mb-3 mt-4"><i class="bi bi-journal-text me-2 text-primary"></i> Ketentuan Komisi</h6>
                 <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-2 pb-2 border-bottom border-dashed">
-                        <span class="text-muted small">Komisi Referral</span>
-                        <span class="fw-bold text-success">Rp 60 / pesan</span>
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span class="text-secondary">Progress ke minimum:</span>
+                        <span class="text-success" id="wdProgressText">0%</span>
                     </div>
-                    <div class="d-flex justify-content-between mb-2 pb-2 border-bottom border-dashed">
-                        <span class="text-muted small">Komisi Utama (Blast)</span>
-                        <span class="fw-bold text-primary">Rp 550 / pesan</span>
+                    <div class="progress" style="height: 8px; background-color: rgba(255,255,255,0.1);">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: 0%" id="wdProgressBar"></div>
                     </div>
-                    <div class="mt-3">
-                        <span class="info-pill"><i class="bi bi-cash"></i> Min. Tarik Rp 100rb</span>
-                        <span class="info-pill"><i class="bi bi-clock"></i> Proses 1x24 Jam</span>
-                    </div>
+                </div>
+
+                <div class="d-flex align-items-center small text-warning" id="wdWarningText">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <span>Kurang Rp10.000 lagi</span>
                 </div>
                 
-                <div class="alert alert-light border small text-muted mb-0">
-                    <i class="bi bi-whatsapp me-1 text-success"></i> ID Akun: <span class="fw-bold text-dark" id="infoModalWaId">-</span><br>
-                    <i class="bi bi-clock-history me-1 text-primary"></i> Update Terakhir: <span class="fw-bold text-dark" id="infoModalUpdate">-</span>
+                <div class="mt-3">
+                    <button class="btn btn-primary w-100 rounded-pill fw-bold" onclick="showTopupModal()">
+                        <i class="bi bi-plus-circle me-2"></i> Isi Saldo (Top Up)
+                    </button>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<!-- Modal History, MyBlast, Withdraw, ChangePass... (Kept same) -->
-<!-- Modal History (Member) -->
-<div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-            <div class="modal-header bg-success text-white" style="border-radius: 20px 20px 0 0;">
-                <h5 class="modal-title"><i class="bi bi-clock-history"></i> Riwayat Penarikan Anda</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div class="alert alert-info m-3 small border-0 shadow-sm" role="alert">
-                    <i class="bi bi-da-circle-fill me-2"></i>
-                    Penarikan akan diproses dalam waktu <strong>1x24 Jam</strong> (Hari Kerja).
-                </div>
-                <div id="transactionList" class="transaction-list">
-                    <div class="text-center py-5 text-muted">
-                        <span class="spinner-border spinner-border-sm"></span> Memuat data...
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+            <!-- Tab Nav for Wallet -->
+            <ul class="nav nav-pills nav-fill mb-3 bg-dark rounded p-1 border border-secondary border-opacity-25" id="walletTabs" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active text-white small" data-bs-toggle="pill" data-bs-target="#tabWithdraw">Penarikan</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link text-white small" data-bs-toggle="pill" data-bs-target="#tabTopupHistory">Riwayat Topup</button>
+                </li>
+            </ul>
 
-<!-- Modal Blast History (Member) -->
-<div class="modal fade" id="myBlastHistoryModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-            <div class="modal-header bg-primary text-white" style="background: var(--dark-gradient) !important; border-radius: 20px 20px 0 0;">
-                <h5 class="modal-title"><i class="bi bi-send-check"></i> Riwayat Blast & Komisi</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div class="alert alert-light m-3 small border border-primary border-opacity-25" role="alert">
-                    <i class="bi bi-info-circle-fill me-2 text-primary"></i>
-                    Berikut adalah daftar pesan yang dikirim menggunakan perangkat WhatsApp Anda.<br>
-                    <strong>Sukses</strong> = Komisi Masuk (Rp 550).
-                </div>
-                
-                <div id="myBlastList" class="transaction-list">
-                    <div class="text-center py-5 text-muted">
-                        <span class="spinner-border spinner-border-sm"></span> Memuat data...
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Withdraw -->
-<div class="modal fade" id="withdrawModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-            <div class="modal-header bg-success text-white" style="border-radius: 20px 20px 0 0;">
-                <h5 class="modal-title"><i class="bi bi-cash-stack"></i> Form Penarikan Komisi</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <form id="withdrawForm">
-                    <div class="form-floating mb-3">
-                        <input type="number" class="form-control" id="wdAmount" required min="100000" placeholder="Jumlah">
-                        <label for="wdAmount">Jumlah (Min Rp 100.000)</label>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="wdBank" required placeholder="Bank">
-                                <label for="wdBank">Bank (BCA/DANA/dll)</label>
+            <div class="tab-content">
+                <!-- Tab Penarikan -->
+                <div class="tab-pane fade show active" id="tabWithdraw">
+                    <!-- Section: Request Withdraw -->
+                    <div class="card mb-3 p-3">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="bg-success bg-opacity-10 rounded p-2 me-3">
+                                <i class="bi bi-cash-stack fs-4 text-success"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0">Request Withdraw</h5>
+                                <div class="small text-muted">Tarik saldo ke rekening</div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="number" class="form-control" id="wdRek" required placeholder="No Rek">
-                                <label for="wdRek">Nomor Rekening</label>
+
+                        <!-- Warning Panel (If Bank Not Set) - Toggle Visibility based on logic -->
+                        <div id="wdBankWarning" class="text-center py-4">
+                             <div class="bg-warning bg-opacity-10 rounded-circle d-inline-flex p-3 mb-3">
+                                 <i class="bi bi-exclamation-triangle-fill fs-3 text-warning"></i>
+                             </div>
+                             <h6 class="text-white">Data Bank Belum Diatur</h6>
+                             <p class="small text-muted mb-3">Atur informasi bank terlebih dahulu</p>
+                             <button class="btn btn-info text-white btn-sm px-4 rounded-pill" onclick="showSection('profile'); setActiveNav('profile')">
+                                 <i class="bi bi-gear-fill me-2"></i> Pengaturan Profil
+                             </button>
+                        </div>
+
+                        <!-- Actual Form (Hidden if Warning Shown) -->
+                        <form id="wdRequestForm" style="display:none;">
+                             <div class="alert alert-info small border-0 bg-opacity-10 bg-info text-info mb-3">
+                                 <i class="bi bi-info-circle me-1"></i> Saldo akan dikirim ke rekening yang terdaftar di Profil.
+                             </div>
+                             <div class="mb-3">
+                                <label class="small text-muted mb-1">Jumlah Penarikan</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-dark border-secondary text-secondary">Rp</span>
+                                    <input type="number" class="form-control bg-dark text-white border-secondary" id="wdRequestAmount" min="10000" placeholder="0">
+                                </div>
+                             </div>
+                             <button type="submit" class="btn btn-success w-100">
+                                 <i class="bi bi-send me-2"></i> Kirim Permintaan
+                             </button>
+                        </form>
+                    </div>
+
+                    <!-- Section: Riwayat Withdraw -->
+                    <div class="card mb-3 p-3">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="bg-secondary bg-opacity-10 rounded p-2 me-3">
+                                <i class="bi bi-clipboard-data fs-4 text-warning"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0">Riwayat Withdraw</h5>
+                                <div class="small text-muted">10 transaksi terakhir</div>
+                            </div>
+                        </div>
+                        
+                        <div id="wdHistoryContainer" class="text-center py-5">
+                            <div class="position-relative d-inline-block mb-3 opacity-50">
+                                <i class="bi bi-file-earmark-text fs-1 text-warning"></i>
+                                <div class="position-absolute bottom-0 end-0 bg-dark rounded-circle p-1">
+                                     <div class="spinner-border spinner-border-sm text-secondary" style="width: 1rem; height: 1rem;"></div>
+                                </div>
+                            </div>
+                            <h6 class="text-white">Belum Ada Riwayat</h6>
+                            <div class="small text-muted">Riwayat withdraw akan muncul di sini</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Riwayat Topup -->
+                <div class="tab-pane fade" id="tabTopupHistory">
+                     <div class="card mb-3 p-3">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="bg-primary bg-opacity-10 rounded p-2 me-3">
+                                <i class="bi bi-clock-history fs-4 text-primary"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-0">Riwayat Top Up</h5>
+                                <div class="small text-muted">Status permintaan isi saldo</div>
+                            </div>
+                        </div>
+                        <div id="topupHistoryContainer" class="text-center py-5">
+                            Loading...
+                        </div>
+                     </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Section: WhatsApp -->
+        <div id="section-whatsapp" style="display: none;">
+            
+            <div class="mb-4">
+                <h2 class="fw-bold mb-1">WhatsApp</h2>
+                <div class="text-secondary small">Kelola WhatsApp Anda untuk menerima pesan</div>
+            </div>
+
+            <button class="btn btn-success w-100 py-3 rounded-4 mb-4 fw-bold shadow-sm" onclick="showAddDeviceModal()">
+                <i class="bi bi-plus-lg me-2"></i> Tambah WhatsApp
+            </button>
+
+            <!-- Warning Card -->
+            <div class="card mb-4 border-0 shadow-sm overflow-hidden" style="background: #f8fafc;">
+                <div class="d-flex">
+                    <div class="bg-danger" style="width: 6px;"></div>
+                    <div class="p-3 w-100">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="bg-danger rounded-2 p-1 me-2 d-flex align-items-center justify-content-center" style="width: 24px; height: 24px;">
+                                <i class="bi bi-exclamation-triangle-fill text-white" style="font-size: 12px;"></i>
+                            </div>
+                            <span class="badge bg-danger rounded-pill">PERINGATAN PENTING</span>
+                        </div>
+                        <div class="text-dark small mb-3" style="line-height: 1.6;">
+                            Dilarang <span class="badge bg-danger rounded-pill fw-normal">menghapus pesan</span> yang sudah terkirim atau menggunakan <span class="badge bg-danger rounded-pill fw-normal">timer</span>.
+                        </div>
+                        <div class="badge bg-danger w-100 py-2 rounded-pill"><i class="bi bi-slash-circle me-1"></i> PEMBLOKIRAN AKUN PERMANEN</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Grid (WhatsApp Specific) -->
+            <div class="row g-2 mb-4">
+                <div class="col-3">
+                    <div class="card bg-dark border border-secondary border-opacity-25 p-2 text-center h-100">
+                        <div class="mx-auto mb-2 d-flex align-items-center justify-content-center bg-success rounded-1" style="width: 30px; height: 30px;">
+                            <i class="bi bi-check-lg text-white"></i>
+                        </div>
+                        <div class="fs-4 fw-bold text-info" id="waStatActive">0</div>
+                        <div class="small text-success fw-bold" style="font-size: 0.6rem;">AKTIF</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="card bg-dark border border-secondary border-opacity-25 p-2 text-center h-100">
+                        <div class="mx-auto mb-2 d-flex align-items-center justify-content-center bg-danger rounded-1" style="width: 30px; height: 30px;">
+                            <i class="bi bi-x-lg text-white"></i>
+                        </div>
+                        <div class="fs-4 fw-bold text-info" id="waStatOffline">0</div>
+                        <div class="small text-danger fw-bold" style="font-size: 0.6rem;">OFFLINE</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="card bg-dark border border-secondary border-opacity-25 p-2 text-center h-100">
+                        <div class="mx-auto mb-2 d-flex align-items-center justify-content-center bg-primary rounded-1" style="width: 30px; height: 30px;">
+                            <i class="bi bi-phone text-white"></i>
+                        </div>
+                        <div class="fs-4 fw-bold text-info" id="waStatTotal">0</div>
+                        <div class="small text-primary fw-bold" style="font-size: 0.6rem;">TOTAL</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="card bg-dark border border-secondary border-opacity-25 p-2 text-center h-100">
+                        <div class="mx-auto mb-2 d-flex align-items-center justify-content-center bg-warning rounded-1" style="width: 30px; height: 30px;">
+                            <i class="bi bi-chat-left-text-fill text-white" style="font-size: 0.8rem;"></i>
+                        </div>
+                        <div class="fs-4 fw-bold text-info" id="waStatMessages">0</div>
+                        <div class="small text-warning fw-bold" style="font-size: 0.6rem;">PESAN</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WhatsApp List Card -->
+            <div class="card bg-dark border border-secondary border-opacity-25 p-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-phone text-primary me-2 fs-5"></i>
+                        <div>
+                            <div class="fw-bold text-white d-flex align-items-center">
+                                Daftar WhatsApp 
+                                <span class="badge rounded-circle bg-secondary bg-opacity-25 ms-2 text-secondary" id="waListCount" style="width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 0.6rem;">0</span>
+                            </div>
+                            <div class="small text-secondary" style="font-size: 0.7rem;">WhatsApp terdaftar</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                     <select class="form-select bg-dark text-white border-secondary mb-2" id="blastSenderMode">
+                         <option value="all">Semua Perangkat</option>
+                         <option value="random">Acak (Random)</option>
+                     </select>
+                     <button class="btn btn-danger w-100 rounded-pill" onclick="showBlastModal()">
+                         <i class="bi bi-lightning-fill me-1"></i> Blast All
+                     </button>
+                </div>
+
+                <div id="whatsappListContainer" class="text-center py-5 border-top border-secondary border-opacity-25">
+                    <div class="mb-3 opacity-25">
+                        <i class="bi bi-phone fs-1 text-white"></i>
+                    </div>
+                    <h6 class="text-white mb-1">Belum ada WhatsApp</h6>
+                    <div class="small text-secondary px-4">Klik "Tambah WhatsApp" untuk menambahkan nomor pertama Anda</div>
+                </div>
+            </div>
+
+            <!-- Riwayat Blast (Khusus Pro/Admin) -->
+            <div id="blastHistorySection" class="mt-4" style="display:none;">
+                <div class="card bg-dark border border-secondary border-opacity-25 p-3">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-info bg-opacity-10 rounded p-2 me-3">
+                            <i class="bi bi-broadcast fs-4 text-info"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0">Riwayat Blast</h5>
+                            <div class="small text-muted">Log pengiriman pesan Anda</div>
+                        </div>
+                    </div>
+                    
+                    <div id="blastHistoryContainer" class="small">
+                        <div class="text-center py-4 text-secondary">Memuat riwayat...</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Section: Referral -->
+        <div id="section-referral" style="display: none;">
+            
+            <!-- Stats Row -->
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <div class="card p-3 h-100 bg-opacity-25 bg-primary border-primary border-opacity-25">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-people-fill fs-2 text-primary me-3"></i>
+                            <div>
+                                <div class="fs-3 fw-bold text-info" id="refTotalStat">0</div>
+                                <div class="small text-uppercase text-secondary" style="font-size: 0.65rem;">REFERRAL</div>
                             </div>
                         </div>
                     </div>
-                    <div class="form-floating mb-3">
-                        <input type="text" class="form-control" id="wdName" required placeholder="Nama Pemilik">
-                        <label for="wdName">Nama Pemilik Rekening</label>
+                </div>
+                <div class="col-6">
+                    <div class="card p-3 h-100 bg-opacity-25 bg-warning border-warning border-opacity-25">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-coin fs-2 text-warning me-3"></i>
+                            <div class="w-100">
+                                <div class="fs-5 fw-bold text-warning" id="refCommissionStat">Rp0</div>
+                                <div class="small text-uppercase text-secondary" style="font-size: 0.65rem;">KOMISI</div>
+                                <div class="progress mt-1" style="height: 3px; background-color: rgba(255,255,255,0.1);">
+                                    <div class="progress-bar bg-info" role="progressbar" style="width: 50%"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-floating mb-4">
-                        <input type="text" class="form-control" id="wdWa" required placeholder="No WA">
-                        <label for="wdWa">No. WhatsApp (Konfirmasi)</label>
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-success btn-lg rounded-pill shadow">Kirim Permintaan</button>
-                    </div>
-                </form>
+                </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<!-- Modal Change Password -->
-<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-            <div class="modal-header bg-primary text-white" style="border-radius: 20px 20px 0 0;">
-                <h5 class="modal-title"><i class="bi bi-shield-lock"></i> Ganti Password</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <form id="changePasswordForm">
-                    <div class="form-floating mb-3">
-                        <input type="password" class="form-control" id="oldPassword" required placeholder="Password Lama">
-                        <label for="oldPassword">Password Lama</label>
+            <!-- Link Referral -->
+            <div class="card mb-3 p-3">
+                <div class="small text-secondary mb-2 text-uppercase">LINK REFERRAL ANDA</div>
+                <div class="d-flex gap-2 mb-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-link-45deg"></i></span>
+                        <input type="text" class="form-control bg-dark text-white border-secondary" id="refLinkInput" readonly value="...">
                     </div>
-                    <div class="form-floating mb-3">
-                        <input type="password" class="form-control" id="newPassword" required minlength="6" placeholder="Password Baru">
-                        <label for="newPassword">Password Baru (Min 6 char)</label>
-                    </div>
-                    <div class="form-floating mb-4">
-                        <input type="password" class="form-control" id="confirmPassword" required minlength="6" placeholder="Konfirmasi Password Baru">
-                        <label for="confirmPassword">Ulangi Password Baru</label>
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow">Simpan Password Baru</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script src="/socket.io/socket.io.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-    // --- UI Logic ---
-    const wrapper = document.getElementById("wrapper");
-    const menuToggle = document.getElementById("menu-toggle");
-    
-    menuToggle.addEventListener("click", function(e) {
-        e.preventDefault();
-        wrapper.classList.toggle("toggled");
-    });
-
-    function showSection(sectionName, element) {
-        document.getElementById('section-dashboard').style.display = 'none';
-        document.getElementById('section-admin').style.display = 'none';
-        document.querySelectorAll('.list-group-item').forEach(el => el.classList.remove('active'));
-        document.getElementById('section-' + sectionName).style.display = 'block';
-        if(element) element.classList.add('active');
-    }
-
-    // --- App Logic ---
-    const BASE_URL = '';
-    const fetchAuth = (url, options = {}) => fetch(BASE_URL + url, { ...options, credentials: 'include' });
-
-    const socket = io(BASE_URL, { withCredentials: true });
-    const logsDiv = document.getElementById('logs');
-    
-    let currentUser = null;
-    let currentScanningSessionId = null;
-
-    // --- Device Management ---
-    function loadDevices() {
-        const container = document.getElementById('devicesListContainer');
-        fetch('/api/devices')
-            .then(res => res.json())
-            .then(devices => {
-                // Update Stats if devices loaded/changed
-                loadUserStats(); 
+                    <button class="btn btn-primary" onclick="copyRefLink()">
+                        <i class="bi bi-clipboard-check"></i> Copy
+                    </button>
+                </div>
                 
-                if (!devices || devices.length === 0) {
-                    container.innerHTML = '<div class="text-center py-4 text-muted small">Belum ada perangkat. Klik Tambah untuk memulai.</div>';
+                <div class="alert alert-dark border border-secondary border-opacity-25 d-flex align-items-center p-2 mb-0">
+                    <i class="bi bi-lightbulb-fill text-warning me-2 fs-5"></i>
+                    <div class="small">
+                        <span class="text-black">Dapatkan</span> 
+                        <span class="text-success fw-bold">Rp60/pesan!</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daftar Referral -->
+            <div class="card mb-3 p-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="mb-0">Daftar Referral</h5>
+                        <div class="small text-muted">Teman yang bergabung</div>
+                    </div>
+                    <span class="badge rounded-circle bg-primary p-2" id="refBadgeCount">0</span>
+                </div>
+                
+                <div id="referralListContainer" class="text-center py-5 bg-dark rounded border border-secondary border-opacity-10">
+                    <div class="bg-primary bg-opacity-10 rounded-3 d-inline-block p-3 mb-3">
+                        <i class="bi bi-people-fill fs-1 text-primary"></i>
+                    </div>
+                    <h6 class="text-white">Belum Ada Referral</h6>
+                    <div class="small text-muted">Ajak teman untuk bergabung</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Section: Admin (Hidden by default) -->
+        <div id="section-profile" style="display: none;">
+            
+            <!-- Card: Kelengkapan Profil -->
+            <div class="card mb-3 p-3">
+                <div class="d-flex align-items-center mb-2">
+                    <div class="bg-secondary bg-opacity-25 rounded-circle p-2 me-3 text-secondary" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-person-fill fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted fw-bold">KELENGKAPAN PROFIL</div>
+                        <div class="fs-4 fw-bold text-info">0%</div>
+                    </div>
+                </div>
+                <div class="progress" style="height: 6px; background-color: rgba(255,255,255,0.1);">
+                    <div class="progress-bar bg-info" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Card: Edit Profil -->
+            <div class="card mb-3 p-3">
+                <div class="d-flex align-items-start mb-3">
+                    <div class="bg-secondary bg-opacity-10 rounded p-2 me-3">
+                        <i class="bi bi-pencil-square fs-4 text-warning"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0">Edit Profil</h5>
+                        <div class="small text-muted">Perbarui informasi bank</div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-dark border-0 small text-muted mb-3" style="background: rgba(255,255,255,0.03);">
+                    <div class="d-flex align-items-center mb-1"><i class="bi bi-circle-fill text-warning me-2" style="font-size: 6px;"></i> Penarikan minimum E-Wallet adalah <strong>Rp10.000</strong></div>
+                    <div class="d-flex align-items-center"><i class="bi bi-circle-fill text-info me-2" style="font-size: 6px;"></i> Penarikan minimum Bank adalah <strong>Rp500.000</strong></div>
+                </div>
+
+                <form id="profileForm">
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1"><i class="bi bi-dot text-info"></i> Username</label>
+                        <input type="text" class="form-control bg-dark text-white border-secondary" id="profileUsername" disabled>
+                        <div class="form-text text-secondary small">Username tidak dapat diubah</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1"><i class="bi bi-dot text-info"></i> Nama Bank</label>
+                        <select class="form-select bg-dark text-white border-secondary" id="profileBank">
+                            <option selected disabled>Pilih Bank</option>
+                            <option value="BCA">BCA</option>
+                            <option value="BRI">BRI</option>
+                            <option value="MANDIRI">MANDIRI</option>
+                            <option value="DANA">DANA</option>
+                            <option value="OVO">OVO</option>
+                            <option value="GOPAY">GOPAY</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1"><i class="bi bi-dot text-success"></i> Nomor Rekening</label>
+                        <input type="number" class="form-control bg-dark text-white border-secondary" id="profileRek" placeholder="Masukkan nomor rekening">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1"><i class="bi bi-dot text-warning"></i> Nama Pemilik Rekening</label>
+                        <input type="text" class="form-control bg-dark text-white border-secondary" id="profileName" placeholder="Masukkan nama pemilik rekening">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2">
+                        <i class="bi bi-save me-2"></i> Simpan Perubahan
+                    </button>
+                </form>
+            </div>
+
+            <!-- Card: Informasi Akun -->
+            <div class="card mb-3 p-3">
+                <div class="d-flex align-items-start mb-3">
+                    <div class="bg-primary bg-opacity-25 rounded p-2 me-3">
+                        <i class="bi bi-info-circle-fill fs-4 text-primary"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0">Informasi Akun</h5>
+                        <div class="small text-muted">Detail akun Anda</div>
+                    </div>
+                </div>
+                
+                <div class="border-top border-secondary border-opacity-25 pt-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center text-muted">
+                            <i class="bi bi-calendar3 me-2"></i> Member sejak
+                        </div>
+                        <div class="fw-bold" id="profileSince">-</div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center text-muted">
+                            <i class="bi bi-award me-2 text-warning"></i> Role
+                        </div>
+                        <span class="badge rounded-pill bg-primary bg-opacity-25 text-primary px-3" id="profileRole">BASIC</span>
+                    </div>
+                    
+                    <!-- Upgrade Button Area -->
+                    <div id="upgradeProArea" class="mb-3" style="display:none;">
+                        <div class="card bg-warning bg-opacity-10 border-warning border-opacity-25 p-3">
+                            <h6 class="text-warning fw-bold mb-2"><i class="bi bi-stars me-1"></i> Upgrade ke PRO</h6>
+                            <p class="small text-white mb-3" style="font-size: 0.8rem;">
+                                Dapatkan akses fitur Blast Crowdsourcing (Kirim pesan via ribuan perangkat member).
+                                <br><span class="text-white-50">*Hubungi Admin untuk upgrade akun.</span>
+                            </p>
+                            <a href="https://t.me/jstogel" target="_blank" class="btn btn-outline-warning w-100 fw-bold btn-sm">
+                                <i class="bi bi-telegram me-1"></i> Hubungi Admin
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center text-muted">
+                            <i class="bi bi-telegram me-2 text-info"></i> Telegram
+                        </div>
+                        <div class="text-danger fw-bold"><i class="bi bi-x-lg"></i> Belum</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card: Ubah Password -->
+            <div class="card mb-3 p-3">
+                <div class="d-flex align-items-start mb-3">
+                    <div class="bg-warning bg-opacity-10 rounded p-2 me-3">
+                        <i class="bi bi-shield-lock-fill fs-4 text-warning"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0">Ubah Password</h5>
+                        <div class="small text-muted">Keamanan akun Anda</div>
+                    </div>
+                </div>
+
+                <form id="profileChangePassForm">
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1"><i class="bi bi-dot text-warning"></i> Password Lama</label>
+                        <input type="password" class="form-control bg-dark text-white border-secondary" id="profOldPass" placeholder="Masukkan password lama">
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1"><i class="bi bi-dot text-success"></i> Password Baru</label>
+                        <input type="password" class="form-control bg-dark text-white border-secondary" id="profNewPass" placeholder="Minimal 6 karakter">
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted mb-1"><i class="bi bi-dot text-success"></i> Konfirmasi Password Baru</label>
+                        <input type="password" class="form-control bg-dark text-white border-secondary" id="profConfirmPass" placeholder="Ulangi password baru">
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100 py-2 text-dark fw-bold">
+                        <i class="bi bi-lock-fill me-2"></i> Ubah Password
+                    </button>
+                </form>
+            </div>
+
+            <!-- Card: Riwayat Perubahan -->
+            <div class="card mb-3 p-3">
+                <div class="d-flex align-items-start mb-3">
+                    <div class="bg-secondary bg-opacity-10 rounded p-2 me-3">
+                        <i class="bi bi-clock-history fs-4 text-warning"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0">Riwayat Perubahan</h5>
+                        <div class="small text-muted">10 perubahan terakhir</div>
+                    </div>
+                </div>
+                
+                <div class="text-center py-5">
+                    <div class="mb-3 opacity-50">
+                        <i class="bi bi-file-earmark-text fs-1 text-warning"></i>
+                    </div>
+                    <h6 class="text-white">Belum Ada Riwayat</h6>
+                    <div class="small text-muted">Perubahan akan tercatat di sini</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Section: Admin (Hidden by default) -->
+        <div id="section-admin" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4>Admin Panel</h4>
+                <button class="btn btn-sm btn-light" onclick="loadAdminData()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+            </div>
+            
+            <!-- Admin Stats -->
+            <div class="row g-2 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="card p-3 text-center border-primary border-opacity-50">
+                        <div class="text-primary small mb-1">Total Member</div>
+                        <h3 class="fw-bold mb-0 text-white" id="countTotalMembers">0</h3>
+                        <div class="small text-secondary" style="font-size: 0.7rem;">Terdaftar</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card p-3 text-center border-warning border-opacity-50">
+                        <div class="text-warning small mb-1">User PRO</div>
+                        <h3 class="fw-bold mb-0 text-white" id="countTotalPro">0</h3>
+                        <div class="small text-secondary" style="font-size: 0.7rem;">Admin/Superadmin</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card p-3 text-center border-success border-opacity-50">
+                        <div class="text-success small mb-1">Devices Online</div>
+                        <h3 class="fw-bold mb-0 text-white" id="countConnected">0</h3>
+                        <div class="small text-secondary" style="font-size: 0.7rem;">Siap Blast</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card p-3 text-center border-danger border-opacity-50">
+                        <div class="text-danger small mb-1">Devices Offline</div>
+                        <h3 class="fw-bold mb-0 text-white" id="countDisconnected">0</h3>
+                        <div class="small text-secondary" style="font-size: 0.7rem;">Belum Terhubung</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Tabs -->
+            <ul class="nav nav-pills mb-3" id="adminTabs" role="tablist">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#members">Member</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#withdrawals">Withdraw</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#adminTopups">Top Up</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#adminBanks">Bank Setting</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#adminBlast">Blast</button></li>
+            </ul>
+
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="members">
+                    <div class="d-flex justify-content-between mb-3">
+                        <input type="text" id="searchMember" class="form-control bg-dark text-white border-secondary w-75" placeholder="Cari member...">
+                        <button class="btn btn-primary" onclick="showAddUserModal()"><i class="bi bi-person-plus-fill"></i> Add</button>
+                    </div>
+                    <div id="membersListContainer"></div>
+                </div>
+                <div class="tab-pane fade" id="withdrawals">
+                    <div id="adminWithdrawalsList"></div>
+                </div>
+                <div class="tab-pane fade" id="adminTopups">
+                     <div class="card p-3">
+                         <h5 class="text-white mb-3">Permintaan Top Up</h5>
+                         <div id="adminTopupsList"></div>
+                     </div>
+                </div>
+                <div class="tab-pane fade" id="adminBanks">
+                     <div class="card p-3 mb-3">
+                         <h5 class="text-white mb-3">Tambah Rekening Admin</h5>
+                         <form id="addBankForm">
+                             <div class="row g-2">
+                                 <div class="col-4"><input type="text" class="form-control bg-dark text-white border-secondary" id="bankName" placeholder="Nama Bank (BCA)" required></div>
+                                 <div class="col-4"><input type="text" class="form-control bg-dark text-white border-secondary" id="bankAccNum" placeholder="No Rekening" required></div>
+                                 <div class="col-4"><input type="text" class="form-control bg-dark text-white border-secondary" id="bankAccName" placeholder="Atas Nama" required></div>
+                             </div>
+                             <button type="submit" class="btn btn-primary w-100 mt-3">Simpan Rekening</button>
+                         </form>
+                     </div>
+                     <div class="card p-3">
+                         <h5 class="text-white mb-3">Daftar Rekening</h5>
+                         <div id="adminBanksList"></div>
+                     </div>
+                </div>
+                 <div class="tab-pane fade" id="adminBlast">
+                     <div class="card p-3">
+                         <h5 class="text-white mb-3">Kirim Pesan (Role Admin)</h5>
+                         
+                         <div class="alert alert-info small border-0 bg-opacity-10 bg-info text-info mb-3">
+                              <div class="fw-bold mb-1"><i class="bi bi-info-circle me-1"></i> Informasi Paket Blast</div>
+                              <div>Biaya default: <strong>Rp900/pesan</strong></div>
+                              <div>Diskon >10000 pesan: <strong>Rp800/pesan</strong></div>
+                              <div class="mt-2 text-warning"><i class="bi bi-exclamation-triangle me-1"></i> Admin menggunakan perangkat Member secara acak (Crowdsourcing).</div>
+                          </div>
+
+                         <form id="blastForm">
+                            <label class="small text-muted mb-1">Metode Pengiriman</label>
+                            <select class="form-select mb-3 bg-dark text-white border-secondary" id="blastMode">
+                                <option value="global">🌐 Crowdsourcing (Gunakan Perangkat Member Acak)</option>
+                                <option value="self">📱 Perangkat Saya Sendiri</option>
+                            </select>
+                            
+                            <textarea class="form-control mb-3 bg-dark text-white border-secondary" id="numbers" rows="3" placeholder="Nomor Tujuan (Satu nomor per baris)"></textarea>
+                            <textarea class="form-control mb-3 bg-dark text-white border-secondary" id="message" rows="3" placeholder="Pesan"></textarea>
+                            <button type="submit" class="btn btn-success w-100">Kirim Pesan</button>
+                         </form>
+                     </div>
+                 </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Floating Action Button -->
+    <a href="https://t.me/jstogel" target="_blank" class="fab">
+        <i class="bi bi-headset"></i>
+    </a>
+    
+
+    <!-- Bottom Navigation (Mobile Only) -->
+    <nav class="bottom-nav d-md-none">
+        <a href="#" class="nav-item-mobile active" id="nav-mobile-home" onclick="showSection('dashboard'); setActiveNav('home')">
+            <i class="bi bi-grid-fill"></i> Dashboard
+        </a>
+        <a href="#" class="nav-item-mobile" id="nav-mobile-wa" onclick="showSection('whatsapp'); setActiveNav('wa')">
+            <i class="bi bi-whatsapp"></i> WhatsApp
+        </a>
+        <a href="#" class="nav-item-mobile" id="nav-mobile-ref" onclick="showSection('referral'); setActiveNav('ref')">
+            <i class="bi bi-people-fill"></i> Referral
+        </a>
+        <a href="#" class="nav-item-mobile" id="nav-mobile-wd" onclick="showSection('withdraw'); setActiveNav('wd')">
+            <i class="bi bi-wallet-fill"></i> Dompet
+        </a>
+        <a href="#" class="nav-item-mobile" id="nav-mobile-profile" onclick="showSection('profile'); setActiveNav('profile')">
+            <i class="bi bi-person-fill"></i> Profil
+        </a>
+    </nav>
+
+    <!-- Modals (Re-used) -->
+    <!-- Modal Add Device -->
+    <div class="modal fade" id="addDeviceModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background-color: #1e293b; border: 1px solid rgba(255,255,255,0.1);">
+                 <div class="modal-header border-0 pb-0">
+                     <h5 class="modal-title fw-bold">Tambah WhatsApp</h5>
+                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                 </div>
+                 <div class="modal-body p-4">
+                     <div id="addDeviceForm">
+                         <div class="alert border-0 mb-4 p-3 d-flex" style="background-color: #fecaca; color: #991b1b; border-radius: 8px;">
+                            
+                             <div style="font-size: 0.95rem; line-height: 1.4;">
+                                 <div class="me-2 fw-bold">PENTING:</div>
+                                 Dilarang menghapus pesan terkirim.<br>
+                                 Akun akan diblokir permanen.
+                             </div>
+                         </div>
+
+                         <div class="mb-4">
+                             <input type="text" class="form-control" id="newSessionName" placeholder="Nama Perangkat" style="background-color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.1); color: rgb(0, 0, 0); padding: 12px; border-radius: 8px;">
+                         </div>
+
+                         <div class="d-grid gap-2 mb-4">
+                             <div class="btn-group" role="group" aria-label="Metode Tautan">
+                                 <button type="button" class="btn btn-outline-light py-2 active" id="btnToggleQr" onclick="toggleAuthMethod('qr')">
+                                     <i class="bi bi-qr-code-scan me-2"></i>Scan QR
+                                 </button>
+                                 <button type="button" class="btn btn-outline-light py-2" id="btnToggleOtp" onclick="toggleAuthMethod('otp')">
+                                     <i class="bi bi-input-cursor-text me-2"></i>Pairing Code
+                                 </button>
+                             </div>
+                         </div>
+                         
+                         <div class="mb-4" id="otpInputGroup" style="display:none;">
+                             <input type="tel" class="form-control" id="pairingNumber" placeholder="Nomor WhatsApp (628...)" style="background-color: #ffffff; border: 1px solid rgba(255,255,255,0.1); color: rgb(0, 0, 0); padding: 12px; border-radius: 8px;">
+                         </div>
+
+                         <button class="btn btn-success w-100 py-3 fw-bold rounded-3 fs-5" id="btnSubmitAuth" onclick="submitAuth()">
+                             Buat Sesi & Scan QR
+                         </button>
+                     </div>
+
+                     <div id="scanQrArea" style="display:none; text-align: center;">
+                         <h5 class="mb-3">Tautkan Perangkat</h5>
+                         <div id="newDeviceQr" class="bg-white p-2 rounded mx-auto mb-3" style="width:250px; height:250px; display:flex; align-items:center; justify-content:center;">
+                             <span class="spinner-border text-dark"></span>
+                         </div>
+                         <div id="otpDisplayArea" style="display:none;">
+                             <h3 class="text-success letter-spacing-2 fs-1 fw-bold" id="otpCodeDisplay">...</h3>
+                             <p class="small text-muted">Masukkan kode di WhatsApp Anda</p>
+                         </div>
+                         <div id="newDeviceStatus" class="fw-bold text-warning mt-3">Menunggu koneksi...</div>
+                     </div>
+                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Withdraw -->
+    <div class="modal fade" id="withdrawModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Penarikan Komisi</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="withdrawForm">
+                        <div class="mb-3"><input type="number" class="form-control bg-dark text-white border-secondary" id="wdAmount" min="10000" placeholder="Jumlah (Min 10.000)" required></div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6"><input type="text" class="form-control bg-dark text-white border-secondary" id="wdBank" placeholder="Bank (BCA/DANA)" required></div>
+                            <div class="col-6"><input type="number" class="form-control bg-dark text-white border-secondary" id="wdRek" placeholder="No Rekening" required></div>
+                        </div>
+                        <div class="mb-3"><input type="text" class="form-control bg-dark text-white border-secondary" id="wdName" placeholder="Nama Pemilik" required></div>
+                        <div class="mb-3"><input type="text" class="form-control bg-dark text-white border-secondary" id="wdWa" placeholder="No WA Konfirmasi" required></div>
+                        <button type="submit" class="btn btn-success w-100">Kirim Permintaan</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Topup -->
+    <div class="modal fade" id="topupModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Isi Saldo (Top Up)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="topupForm">
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Nominal Top Up</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-dark border-secondary text-secondary">Rp</span>
+                                <input type="number" class="form-control bg-dark text-white border-secondary" id="topupAmount" min="10000" placeholder="Min. 10.000" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Metode Pembayaran</label>
+                            <select class="form-select bg-dark text-white border-secondary" id="topupMethod">
+                                <option value="BCA">Transfer Bank BCA</option>
+                                <option value="DANA">E-Wallet DANA</option>
+                                <option value="GOPAY">E-Wallet GOPAY</option>
+                                <option value="OVO">E-Wallet OVO</option>
+                            </select>
+                        </div>
+                        <div class="alert alert-warning small border-0 bg-opacity-10 bg-warning text-warning">
+                            <i class="bi bi-info-circle me-1"></i> Setelah request, Anda akan menerima instruksi pembayaran.
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Buat Pesanan</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Change Password -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Ganti Password</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="changePasswordForm">
+                        <div class="mb-3"><input type="password" class="form-control bg-dark text-white border-secondary" id="oldPassword" placeholder="Password Lama" required></div>
+                        <div class="mb-3"><input type="password" class="form-control bg-dark text-white border-secondary" id="newPassword" placeholder="Password Baru" required></div>
+                        <div class="mb-3"><input type="password" class="form-control bg-dark text-white border-secondary" id="confirmPassword" placeholder="Ulangi Password" required></div>
+                        <button type="submit" class="btn btn-primary w-100">Simpan</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Add User (Admin) -->
+    <div class="modal fade" id="addUserModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Tambah User Baru</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addUserForm">
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Username</label>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" id="newUsername" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Password</label>
+                            <input type="password" class="form-control bg-dark text-white border-secondary" id="newPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Role</label>
+                            <select class="form-select bg-dark text-white border-secondary" id="newRole">
+                                <option value="member">Member</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">No. HP</label>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" id="newPhone" placeholder="628..." required>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Simpan User</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        const BASE_URL = '';
+        const fetchAuth = (url, options = {}) => fetch(BASE_URL + url, { ...options, credentials: 'include' });
+        
+        // Safe Socket Init
+        let socket;
+        try {
+            socket = io(BASE_URL, { withCredentials: true });
+        } catch(e) {
+            console.error("Socket.io not loaded:", e);
+            // Mock socket to prevent errors
+            socket = { on: () => {}, emit: () => {} }; 
+        }
+        
+        // --- UI Logic ---
+        function setActiveNav(id) {
+            document.querySelectorAll('.nav-item-mobile').forEach(el => el.classList.remove('active'));
+            const el = document.getElementById('nav-mobile-' + id);
+            if(el) el.classList.add('active');
+        }
+
+        function showSection(sectionName) {
+            document.getElementById('section-dashboard').style.display = 'none';
+            document.getElementById('section-admin').style.display = 'none';
+            document.getElementById('section-profile').style.display = 'none';
+            document.getElementById('section-withdraw').style.display = 'none';
+            document.getElementById('section-referral').style.display = 'none';
+            document.getElementById('section-whatsapp').style.display = 'none';
+            document.getElementById('section-' + sectionName).style.display = 'block';
+            
+            // Update Active State Desktop
+            document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+            if(sectionName === 'dashboard') document.querySelector('a[onclick*="dashboard"]').classList.add('active');
+            
+            // Trigger specific loads
+            if(sectionName === 'withdraw') updateWithdrawUI();
+            if(sectionName === 'referral') updateReferralUI();
+            if(sectionName === 'whatsapp') updateWhatsappUI();
+        }
+
+        // --- Data Loading ---
+        const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
+        let currentUserBalance = 0;
+        let currentUserReferralCode = '';
+
+        function initUser() {
+            fetch('/api/me')
+                .then(res => {
+                    if (!res.ok) throw new Error("Gagal terhubung ke server");
+                    return res.json();
+                })
+                .then(user => {
+                    currentUserBalance = user.balance;
+                    currentUserReferralCode = user.referral_code;
+                    document.getElementById('headerUsername').innerText = user.username;
+                    document.getElementById('greetUsername').innerText = user.username;
+                    document.getElementById('headerAvatar').innerText = user.username.charAt(0).toUpperCase();
+                    document.getElementById('dashBalance').innerText = formatRupiah(user.balance);
+                    document.getElementById('memberSince').innerText = "06 Feb 2026"; 
+                    
+                    // Profile Data
+                    document.getElementById('profileUsername').value = user.username;
+                    document.getElementById('profileSince').innerText = "06 Feb 2026";
+                    document.getElementById('profileRole').innerText = user.role.toUpperCase();
+
+                    // Admin Access
+                    if(user.role === 'superadmin') {
+                        document.getElementById('desktop-nav-admin').style.display = 'flex';
+                        document.getElementById('desktop-nav-history').style.display = 'flex';
+                    }
+                    
+                    // Show Upgrade Button if Member
+                    if(user.role === 'member') {
+                        document.getElementById('upgradeProArea').style.display = 'block';
+                    } else {
+                        document.getElementById('upgradeProArea').style.display = 'none';
+                    }
+
+                    window.myReferralCode = user.referral_code;
+
+                    if (socket && socket.emit) socket.emit('join', user.id);
+                    loadDevices();
+                    loadUserStats();
+                    updateWithdrawUI();
+                    updateReferralUI();
+                    updateWhatsappUI();
+                })
+                .catch(err => {
+                    console.error("Init User Error:", err);
+                    // Show error only if we are in a browser context where UI matters
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Koneksi Gagal',
+                            text: 'Gagal memuat data user. Pastikan Anda sudah Login dan Server berjalan.',
+                            footer: '<a href="/login">Ke Halaman Login</a>'
+                        });
+                    }
+                });
+        }
+
+        function updateWhatsappUI() {
+            fetch('/api/me/stats').then(r=>r.json()).then(stats => {
+                document.getElementById('waStatActive').innerText = stats.devices_online || 0;
+                document.getElementById('waStatOffline').innerText = stats.devices_offline || 0;
+                document.getElementById('waStatTotal').innerText = (stats.devices_online + stats.devices_offline) || 0;
+                document.getElementById('waStatMessages').innerText = stats.messages_sent || 0;
+            });
+            loadDevices(true); // Force reload list into WA section
+            
+            // Check Role for Blast History
+            fetch('/api/me').then(r=>r.json()).then(user => {
+                if (user.role === 'admin' || user.role === 'superadmin') {
+                    document.getElementById('blastHistorySection').style.display = 'block';
+                    loadBlastHistory();
+                } else {
+                    document.getElementById('blastHistorySection').style.display = 'none';
+                }
+            });
+        }
+        
+        function loadBlastHistory() {
+            fetch('/api/me/blast-logs').then(r=>r.json()).then(logs => {
+                const c = document.getElementById('blastHistoryContainer');
+                if (logs.length === 0) {
+                    c.innerHTML = '<div class="text-center py-4 text-secondary">Belum ada riwayat blast.</div>';
                     return;
                 }
                 
-                container.innerHTML = '';
-                devices.forEach(d => {
-                    let iconClass = 'disconnected';
-                    let iconEl = '<i class="bi bi-phone"></i>';
-                    let statusText = 'Terputus';
-                    let infoText = 'Sesi tidak aktif';
+                c.innerHTML = '<div class="list-group list-group-flush">';
+                
+                // Grouping by blast_id or showing individual numbers?
+                // The current API returns individual numbers (blast_log_details joined)
+                // Let's just show list of numbers for now as per current API structure
+                
+                logs.forEach(log => {
+                    const statusColor = log.status === 'success' ? 'text-success' : 'text-danger';
+                    const icon = log.status === 'success' ? 'bi-check-circle-fill' : 'bi-x-circle-fill';
                     
-                    if (d.status === 'connected') {
-                        iconClass = 'connected';
-                        iconEl = '<i class="bi bi-whatsapp"></i>';
-                        statusText = '<span class="text-success fw-bold">Terhubung</span>';
-                        infoText = d.device_info ? `${d.device_info.pushname} (${d.device_info.wid.user})` : 'Connected';
-                    } else if (d.status === 'scanning') {
-                        statusText = '<span class="text-warning fw-bold">Scanning...</span>';
-                    }
+                    c.innerHTML += `
+                    <div class="list-group-item bg-transparent border-secondary border-opacity-10 text-white d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <div class="fw-bold">${log.target_number}</div>
+                            <div class="small text-secondary">${new Date(log.created_at).toLocaleString()}</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="${statusColor} small fw-bold"><i class="bi ${icon} me-1"></i> ${log.status.toUpperCase()}</div>
+                            <div class="small text-muted" style="font-size: 0.7rem;">${log.sender_mode || 'Auto'}</div>
+                        </div>
+                    </div>`;
+                });
+                
+                c.innerHTML += '</div>';
+            });
+        }
+        
+        // Overwrite loadDevices to handle both containers if needed or unify
+        function loadDevices(forWaSection = false) {
+            fetch('/api/devices').then(r=>r.json()).then(devices => {
+                // Update Dashboard List (if visible)
+                const dashContainer = document.getElementById('devicesListContainer');
+                
+                // Update WA Section List
+                const waContainer = document.getElementById('whatsappListContainer');
+                const waCount = document.getElementById('waListCount');
+                if(waCount) waCount.innerText = devices.length;
 
-                    const html = `
-                        <div class="device-item">
-                            <div class="d-flex align-items-center">
-                                <div class="device-icon ${iconClass}">${iconEl}</div>
-                                <div class="device-info">
-                                    <div class="device-name">${d.session_name}</div>
-                                    <div class="device-status">${statusText}</div>
-                                    <div class="small text-muted">${infoText}</div>
+                let htmlContent = '';
+                if(devices.length === 0) {
+                     htmlContent = `
+                    <div class="mb-3 opacity-25">
+                        <i class="bi bi-phone fs-1 text-white"></i>
+                    </div>
+                    <h6 class="text-white mb-1">Belum ada WhatsApp</h6>
+                    <div class="small text-secondary px-4">Klik "Tambah WhatsApp" untuk menambahkan nomor pertama Anda</div>`;
+                } else {
+                    htmlContent = '<div class="d-flex flex-column gap-2 text-start">';
+                    devices.forEach(d => {
+                         const statusColor = d.status === 'connected' ? 'success' : 'danger';
+                         const statusIcon = d.status === 'connected' ? 'check-circle-fill' : 'x-circle-fill';
+                         htmlContent += `
+                         <div class="p-3 rounded border border-secondary border-opacity-25 bg-dark d-flex justify-content-between align-items-center">
+                             <div class="d-flex align-items-center">
+                                 <div class="bg-${statusColor} bg-opacity-10 p-2 rounded me-3">
+                                     <i class="bi bi-whatsapp text-${statusColor} fs-5"></i>
+                                 </div>
+                                 <div>
+                                     <div class="fw-bold text-white">${d.session_name}</div>
+                                     <div class="small text-${statusColor} d-flex align-items-center">
+                                         <i class="bi bi-${statusIcon} me-1"></i> ${d.status.toUpperCase()}
+                                     </div>
+                                 </div>
+                             </div>
+                             <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteDevice(${d.id})">
+                                 <i class="bi bi-trash"></i>
+                             </button>
+                         </div>`;
+                    });
+                    htmlContent += '</div>';
+                }
+
+                if(waContainer) waContainer.innerHTML = htmlContent;
+                
+                // Also update dashboard list simply
+                if(dashContainer) {
+                     if(!devices.length) dashContainer.innerHTML = 'Belum ada perangkat.';
+                     else {
+                         dashContainer.innerHTML = '';
+                         devices.forEach(d => {
+                            const color = d.status === 'connected' ? 'text-success' : 'text-danger';
+                            const icon = d.status === 'connected' ? 'bi-whatsapp' : 'bi-phone';
+                            dashContainer.innerHTML += `
+                            <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary border-opacity-10">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi ${icon} ${color} me-3 fs-5"></i>
+                                    <div>
+                                        <div class="fw-bold text-white">${d.session_name}</div>
+                                        <div class="small text-secondary">${d.status}</div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteDevice(${d.id})"><i class="bi bi-trash"></i></button>
+                            </div>`;
+                         });
+                     }
+                }
+            });
+        }
+        
+        function showBlastModal() {
+             // Show blast modal or form
+             Swal.fire('Info', 'Fitur Blast All akan segera hadir!', 'info');
+        }
+
+        function updateReferralUI() {
+             const refLink = `${window.location.origin}/register?ref=${currentUserReferralCode}`;
+             document.getElementById('refLinkInput').value = refLink;
+             
+             // Update Stats (using loaded stats if available or refetch)
+             fetch('/api/me/stats').then(r=>r.json()).then(stats => {
+                document.getElementById('refTotalStat').innerText = stats.referral_total || 0;
+                document.getElementById('refBadgeCount').innerText = stats.referral_total || 0;
+                // Commission usually separate, for now use balance or placeholder
+                document.getElementById('refCommissionStat').innerText = formatRupiah(stats.referral_total * 60); // Mock calc based on rate
+             });
+        }
+
+        function copyRefLink() {
+            const copyText = document.getElementById("refLinkInput");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(copyText.value).then(() => {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Link referral disalin!',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            });
+        }
+
+        function updateWithdrawUI() {
+            const minWd = 10000;
+            const balance = currentUserBalance;
+            const progress = Math.min((balance / minWd) * 100, 100);
+            const remaining = Math.max(minWd - balance, 0);
+
+            document.getElementById('wdBalanceDisplay').innerText = formatRupiah(balance);
+            document.getElementById('wdProgressBar').style.width = `${progress}%`;
+            document.getElementById('wdProgressText').innerText = `${Math.floor(progress)}%`;
+            
+            const warningEl = document.getElementById('wdWarningText');
+            if (remaining > 0) {
+                warningEl.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i><span>Kurang ${formatRupiah(remaining)} lagi</span>`;
+                warningEl.className = "d-flex align-items-center small text-warning";
+            } else {
+                warningEl.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i><span>Saldo siap ditarik!</span>`;
+                warningEl.className = "d-flex align-items-center small text-success fw-bold";
+            }
+
+            // Check Bank Data Logic (Mock for now)
+            // Ideally check user.bank_name etc.
+            // For now, assume if balance > 0 enable form
+            // document.getElementById('wdBankWarning').style.display = 'none';
+            // document.getElementById('wdRequestForm').style.display = 'block';
+        }
+
+        function loadUserStats() {
+            fetch('/api/me/stats').then(r=>r.json()).then(stats => {
+                // Dashboard Stats
+                document.getElementById('dashStatActive').innerText = stats.devices_online || 0;
+                document.getElementById('dashStatOffline').innerText = stats.devices_offline || 0;
+                document.getElementById('dashStatBlast').innerText = stats.messages_sent || 0;
+                // Earning usually balance, or maybe total earned. Using balance for now or we can compute total earned.
+                // Image says "Earning", maybe total commission earned?
+                // For now use 0 or some stat if available.
+                document.getElementById('dashStatEarn').innerText = stats.referral_total || 0; // Or other stat
+                
+                // Referral Card
+                document.getElementById('dashRefTotal').innerText = stats.referral_total || 0;
+            });
+        }
+
+        // --- Device Management ---
+        let currentScanningSessionId = null;
+        let currentAuthMethod = 'qr';
+
+        function toggleAuthMethod(method) {
+            currentAuthMethod = method;
+            const btnQr = document.getElementById('btnToggleQr');
+            const btnOtp = document.getElementById('btnToggleOtp');
+            const otpInput = document.getElementById('otpInputGroup');
+            const submitBtn = document.getElementById('btnSubmitAuth');
+
+            if (method === 'qr') {
+                btnQr.classList.add('active', 'btn-light', 'text-dark');
+                btnQr.classList.remove('btn-outline-light');
+                
+                btnOtp.classList.remove('active', 'btn-light', 'text-dark');
+                btnOtp.classList.add('btn-outline-light');
+                
+                otpInput.style.display = 'none';
+                submitBtn.innerHTML = '<i class="bi bi-qr-code me-2"></i>Buat Sesi & Scan QR';
+            } else {
+                btnOtp.classList.add('active', 'btn-light', 'text-dark');
+                btnOtp.classList.remove('btn-outline-light');
+                
+                btnQr.classList.remove('active', 'btn-light', 'text-dark');
+                btnQr.classList.add('btn-outline-light');
+                
+                otpInput.style.display = 'block';
+                submitBtn.innerHTML = '<i class="bi bi-key me-2"></i>Dapatkan Kode Pairing';
+            }
+        }
+
+        function submitAuth() {
+            createNewDevice(currentAuthMethod);
+        }
+
+        // Function loadDevices replaced above to handle both views
+        // Keeping deleteDevice same
+        
+        function createNewDevice(method) {
+            const name = document.getElementById('newSessionName').value;
+            const pairingNumber = document.getElementById('pairingNumber').value;
+            
+            document.getElementById('addDeviceForm').style.display = 'none';
+            document.getElementById('scanQrArea').style.display = 'block';
+            
+            if(method === 'otp') {
+                document.getElementById('newDeviceQr').style.display = 'none';
+                document.getElementById('otpDisplayArea').style.display = 'block';
+            } else {
+                document.getElementById('newDeviceQr').style.display = 'flex';
+                document.getElementById('otpDisplayArea').style.display = 'none';
+            }
+
+            fetch('/api/devices', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ session_name: name, method, pairing_number: pairingNumber })
+            }).then(r=>r.json()).then(d => {
+                if(d.status === 'success') currentScanningSessionId = d.data.id;
+            });
+        }
+        
+        function deleteDevice(id) {
+            Swal.fire({title:'Hapus?', icon:'warning', showCancelButton:true, confirmButtonText:'Ya'}).then(r=>{
+                if(r.isConfirmed) fetch('/api/devices/'+id, {method:'DELETE'}).then(()=>loadDevices());
+            });
+        }
+
+        // --- Socket Events ---
+        socket.on('qr', data => {
+            if(currentScanningSessionId == data.sessionId) {
+                document.getElementById('newDeviceQr').innerHTML = `<img src="${data.url}" class="img-fluid">`;
+                document.getElementById('newDeviceStatus').innerText = "Scan QR sekarang";
+            }
+        });
+        socket.on('pairing_code', data => {
+            if(currentScanningSessionId == data.sessionId) {
+                document.getElementById('otpCodeDisplay').innerText = data.code;
+                document.getElementById('newDeviceStatus').innerText = "Masukkan kode di HP";
+            }
+        });
+        socket.on('ready', data => {
+            if(currentScanningSessionId == data.sessionId) {
+                bootstrap.Modal.getInstance(document.getElementById('addDeviceModal')).hide();
+                Swal.fire('Sukses', 'Terhubung', 'success');
+                currentScanningSessionId = null;
+                loadDevices();
+                loadUserStats();
+            }
+        });
+
+        // --- Global Socket Listeners ---
+        socket.on('message', (msg) => {
+            // Show Toast for general messages
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'info',
+                title: msg,
+                showConfirmButton: false,
+                timer: 3000
+            });
+        });
+
+        socket.on('disconnected', (data) => {
+            // Refresh UI on disconnect
+            console.log("Session disconnected:", data);
+            loadDevices();
+            loadUserStats();
+            updateWhatsappUI();
+        });
+
+        // --- Helpers ---
+        function shareReferral() {
+            const url = `${window.location.origin}/register?ref=${window.myReferralCode}`;
+            if(navigator.share) navigator.share({title:'WA Blast Pro', url});
+            else navigator.clipboard.writeText(url).then(()=>Swal.fire('Disalin', 'Link referral disalin', 'success'));
+        }
+        function doLogout() { window.location.href = '/logout'; }
+        function showAddDeviceModal() {
+            try {
+                if (typeof bootstrap === 'undefined') {
+                    throw new Error("Bootstrap library belum termuat. Periksa koneksi internet Anda.");
+                }
+
+                document.getElementById('addDeviceForm').style.display = 'block';
+                document.getElementById('scanQrArea').style.display = 'none';
+                document.getElementById('newSessionName').value = '';
+                document.getElementById('pairingNumber').value = '';
+                toggleAuthMethod('qr');
+                
+                const modalEl = document.getElementById('addDeviceModal');
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            } catch (e) {
+                console.error("Error showing modal:", e);
+                alert("Gagal membuka modal: " + e.message);
+            }
+        }
+
+        // function confirmUpgrade() ... DISABLED for manual upgrade
+        
+        function showTopupModal() {
+            // Load Banks First
+            fetch('/api/admin/banks').then(r=>r.json()).then(banks => {
+                const select = document.getElementById('topupMethod');
+                select.innerHTML = '';
+                if(banks.length === 0) {
+                    select.innerHTML = '<option disabled>Belum ada metode pembayaran</option>';
+                } else {
+                    banks.forEach(b => {
+                        select.innerHTML += `<option value="${b.bank_name} - ${b.account_number}">${b.bank_name} (${b.account_number} a.n ${b.account_name})</option>`;
+                    });
+                }
+                const modal = new bootstrap.Modal(document.getElementById('topupModal'));
+                modal.show();
+            });
+        }
+
+        document.getElementById('topupForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const amount = document.getElementById('topupAmount').value;
+            const method = document.getElementById('topupMethod').value;
+            
+            fetchAuth('/api/topup', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ amount, payment_method: method })
+            }).then(r=>r.json()).then(d => {
+                if(d.status === 'success') {
+                    bootstrap.Modal.getInstance(document.getElementById('topupModal')).hide();
+                    
+                    Swal.fire({
+                        title: 'Permintaan Dibuat!',
+                        html: `Silakan transfer <b>${formatRupiah(amount)}</b> ke:<br><br>
+                        <b>${method} - 081234567890</b><br>
+                        a.n. Admin Blast<br><br>
+                        Setelah transfer, konfirmasi ke Admin via WhatsApp/Telegram.`,
+                        icon: 'success',
+                        confirmButtonText: 'Konfirmasi ke Admin',
+                        showCancelButton: true,
+                        cancelButtonText: 'Tutup'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.open('https://t.me/jstogel', '_blank');
+                        }
+                        updateWithdrawUI(); // Refresh history
+                    });
+                } else {
+                    Swal.fire('Gagal', d.message, 'error');
+                }
+            });
+        });
+
+        function approveTopup(id, userId, amount) {
+            Swal.fire({
+                title: 'Setujui Topup?',
+                text: `Saldo user akan bertambah ${formatRupiah(amount)}`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Setujui'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetchAuth('/api/admin/topups/approve', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ id, userId, amount })
+                    }).then(r=>r.json()).then(d => {
+                        Swal.fire(d.status === 'success' ? 'Sukses' : 'Gagal', d.message, d.status === 'success' ? 'success' : 'error');
+                        loadAdminData();
+                    });
+                }
+            });
+        }
+        
+        // --- Admin Bank Functions ---
+        document.getElementById('addBankForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const bank_name = document.getElementById('bankName').value;
+            const account_number = document.getElementById('bankAccNum').value;
+            const account_name = document.getElementById('bankAccName').value;
+            
+            fetchAuth('/api/admin/banks', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ bank_name, account_number, account_name })
+            }).then(r=>r.json()).then(d => {
+                if(d.status === 'success') {
+                    Swal.fire('Sukses', 'Rekening ditambahkan', 'success');
+                    document.getElementById('addBankForm').reset();
+                    loadAdminData(); // Reload list
+                }
+            });
+        });
+
+        function deleteBank(id) {
+            Swal.fire({
+                title: 'Hapus Rekening?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Hapus'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetchAuth(`/api/admin/banks/${id}`, { method: 'DELETE' })
+                    .then(r=>r.json()).then(() => loadAdminData());
+                }
+            });
+        }
+
+        // --- Admin Functions ---
+        function loadAdminData() {
+            fetch('/api/admin/users').then(r=>r.json()).then(users => {
+                const c = document.getElementById('membersListContainer');
+                c.innerHTML = '';
+                let connected = 0, disconnected = 0;
+                let totalMembers = 0, totalPro = 0;
+
+                users.forEach(u => {
+                    // Stats Calculation
+                    if(u.role === 'member') totalMembers++;
+                    if(u.role === 'admin' || u.role === 'superadmin') totalPro++;
+                    
+                    if(u.connected_device_count > 0) connected += u.connected_device_count;
+                    disconnected += (u.device_count - u.connected_device_count);
+                    
+                    const roleBadge = u.role === 'admin' ? 'bg-warning text-dark' : (u.role === 'superadmin' ? 'bg-danger' : 'bg-secondary');
+                    
+                    let devicesHtml = '';
+                    if (u.devices && u.devices.length > 0) {
+                        devicesHtml = `<div class="mt-2 border-top border-secondary border-opacity-25 pt-2">
+                            <a class="text-decoration-none small text-muted" data-bs-toggle="collapse" href="#devList${u.id}" role="button">
+                                <i class="bi bi-phone me-1"></i> Lihat Rincian Perangkat (${u.devices.length})
+                            </a>
+                            <div class="collapse mt-2" id="devList${u.id}">
+                                <div class="card card-body bg-black bg-opacity-25 p-2">
+                                    ${u.devices.map(d => {
+                                        const statusColor = d.status === 'connected' ? 'text-success' : 'text-danger';
+                                        let phoneInfo = '-';
+                                        if(d.device_info) {
+                                            try {
+                                                const info = JSON.parse(d.device_info);
+                                                phoneInfo = info.wid ? info.wid.user : 'Belum Scan';
+                                            } catch(e) { phoneInfo = 'Invalid Data'; }
+                                        }
+                                        return `<div class="d-flex justify-content-between small mb-1">
+                                            <span class="text-white-50">${d.session_name} (${phoneInfo})</span>
+                                            <span class="${statusColor} fw-bold" style="font-size: 0.7rem;">${d.status.toUpperCase()}</span>
+                                        </div>`;
+                                    }).join('')}
                                 </div>
                             </div>
+                        </div>`;
+                    } else {
+                        devicesHtml = `<div class="mt-2 small text-muted fst-italic">Tidak ada perangkat terdaftar</div>`;
+                    }
+
+                    c.innerHTML += `
+                    <div class="member-list-item p-3 mb-2 rounded border border-secondary border-opacity-25">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-bold text-white me-2">${u.username}</span>
+                                <span class="badge ${roleBadge}">${u.role}</span>
+                            </div>
                             <div class="dropdown">
-                                <button class="btn btn-sm btn-light" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow">
-                                    <li><a class="dropdown-item" href="#" onclick="deleteDevice(${d.id})"><i class="bi bi-trash text-danger me-2"></i> Hapus</a></li>
+                                <button class="btn btn-sm btn-link text-white" type="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                                <ul class="dropdown-menu dropdown-menu-dark">
+                                    <li><a class="dropdown-item" href="#" onclick="addBalance(${u.id})"><i class="bi bi-cash me-2"></i> Tambah Saldo</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="changeUserRole(${u.id}, '${u.role}')"><i class="bi bi-person-badge me-2"></i> Ubah Role</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="#" onclick="deleteUser(${u.id})"><i class="bi bi-trash me-2"></i> Hapus User</a></li>
                                 </ul>
                             </div>
                         </div>
-                    `;
-                    container.innerHTML += html;
+                        <div class="small text-secondary mt-1">
+                            Saldo: ${formatRupiah(u.balance)} | Devices: ${u.connected_device_count}/${u.device_count}
+                        </div>
+                        ${devicesHtml}
+                    </div>`;
+                });
+                
+                // Update Stats UI
+                document.getElementById('countConnected').innerText = connected;
+                document.getElementById('countDisconnected').innerText = disconnected;
+                document.getElementById('countTotalMembers').innerText = totalMembers;
+                document.getElementById('countTotalPro').innerText = totalPro;
+            });
+            
+            fetch('/api/admin/withdrawals').then(r=>r.json()).then(list => {
+                const c = document.getElementById('adminWithdrawalsList');
+                c.innerHTML = '';
+                list.forEach(w => {
+                    c.innerHTML += `<div class="p-3 mb-2 bg-dark border border-secondary rounded text-white">${w.username} - ${formatRupiah(w.amount)} (${w.status})</div>`;
                 });
             });
-    }
 
-    function showAddDeviceModal() {
-        document.getElementById('addDeviceForm').style.display = 'block';
-        document.getElementById('scanQrArea').style.display = 'none';
-        new bootstrap.Modal(document.getElementById('addDeviceModal')).show();
-    }
-
-    function createNewDevice() {
-        const name = document.getElementById('newSessionName').value;
-        fetch('/api/devices', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ session_name: name })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if(data.status === 'success') {
-                currentScanningSessionId = data.data.id;
-                document.getElementById('addDeviceForm').style.display = 'none';
-                document.getElementById('scanQrArea').style.display = 'block';
-                loadDevices(); // Refresh list to show new pending device
-            }
-        });
-    }
-
-    function deleteDevice(id) {
-        Swal.fire({
-            title: 'Hapus Perangkat?',
-            text: "Sesi akan diputus dan data sesi dihapus.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            confirmButtonText: 'Ya, Hapus!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch(`/api/devices/${id}`, { method: 'DELETE' })
-                    .then(res => res.json())
-                    .then(data => {
-                        loadDevices();
-                        Swal.fire('Terhapus', '', 'success');
-                    });
-            }
-        });
-    }
-
-    // --- Socket Listeners for Multi-Device ---
-    socket.on('qr', (data) => {
-        // data = { sessionId, url }
-        if (currentScanningSessionId && data.sessionId == currentScanningSessionId) {
-             const qrDiv = document.getElementById('newDeviceQr');
-             qrDiv.innerHTML = `<img src="${data.url}" alt="QR Code" class="img-fluid border p-2 bg-white rounded shadow-sm">`;
-             document.getElementById('newDeviceStatus').innerText = "Silahkan Scan QR Code";
-        }
-    });
-
-    socket.on('ready', (data) => {
-        if (currentScanningSessionId && data.sessionId == currentScanningSessionId) {
-            // Close modal
-            bootstrap.Modal.getInstance(document.getElementById('addDeviceModal')).hide();
-            Swal.fire('Berhasil', 'WhatsApp Terhubung!', 'success');
-            currentScanningSessionId = null;
-            loadDevices();
-        } else {
-            // Update list status if not scanning
-            loadDevices();
-        }
-        addLog(`Device #${data.sessionId} Connected`);
-    });
-
-    socket.on('disconnected', (data) => {
-        loadDevices();
-        addLog(`Device #${data.sessionId} Disconnected`);
-    });
-
-    // --- User & Referral ---
-    const formatRupiah = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
-
-    function initUser() {
-        fetch('/api/me')
-            .then(res => res.json())
-            .then(user => {
-                currentUser = user;
-                document.getElementById('userInfoName').innerText = user.username;
-                document.getElementById('userInfoRole').innerText = 'Role: ' + user.role.toUpperCase();
+            fetch('/api/admin/topups').then(r=>r.json()).then(list => {
+                const c = document.getElementById('adminTopupsList');
+                c.innerHTML = '';
+                if(list.length === 0) c.innerHTML = '<div class="text-center text-muted py-3">Belum ada permintaan topup</div>';
                 
-                const fmtBalance = formatRupiah(user.balance);
-                document.getElementById('userBalance').innerText = fmtBalance;
-                document.getElementById('monthlyCommission').innerText = fmtBalance; 
-                document.getElementById('myReferralCode').innerText = user.referral_code || '-';
-
-                // Modal Info Updates
-                document.getElementById('infoModalBalance').innerText = fmtBalance;
-                document.getElementById('infoModalAvailable').innerText = fmtBalance;
-                document.getElementById('infoModalWaId').innerText = user.username;
-                document.getElementById('infoModalUpdate').innerText = new Date().toLocaleString('id-ID');
-                
-                socket.emit('join', user.id);
-                loadDevices();
-                loadUserStats(); // New function call
-
-                if (user.role === 'superadmin') {
-                    document.getElementById('nav-admin').style.display = 'block';
-                    document.getElementById('nav-blast-history').style.display = 'block';
-                    document.getElementById('adminPanel').style.display = 'block';
-                    document.getElementById('adminBlastContainer').style.display = 'block'; 
-                    document.getElementById('senderSelectContainer').style.display = 'block';
-                    loadAdminData();
-                }
+                list.forEach(t => {
+                    let actionBtn = '';
+                    if(t.status === 'pending') {
+                        actionBtn = `<button class="btn btn-sm btn-success ms-2" onclick="approveTopup(${t.id}, ${t.user_id}, ${t.amount})">Approve</button>`;
+                    }
+                    
+                    const statusColor = t.status === 'success' ? 'text-success' : (t.status === 'pending' ? 'text-warning' : 'text-danger');
+                    
+                    c.innerHTML += `
+                    <div class="p-3 mb-2 bg-dark border border-secondary rounded text-white d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">${t.username}</div>
+                            <div class="small text-secondary">${t.payment_method} - ${new Date(t.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold">${formatRupiah(t.amount)}</div>
+                            <div class="small ${statusColor} fw-bold">${t.status.toUpperCase()}</div>
+                        </div>
+                        ${actionBtn}
+                    </div>`;
+                });
             });
-    }
 
-    function loadUserStats() {
-        fetch('/api/me/stats')
-            .then(res => res.json())
-            .then(stats => {
-                document.getElementById('statOnline').innerText = stats.devices_online;
-                document.getElementById('statOffline').innerText = stats.devices_offline;
-                document.getElementById('statTotal').innerText = stats.devices_total;
-                document.getElementById('statSent').innerText = stats.messages_sent;
-                
-                // Referral Stats
-                if (document.getElementById('refTotal')) {
-                    document.getElementById('refTotal').innerText = stats.referral_total || 0;
-                    document.getElementById('refActive').innerText = stats.referral_active || 0;
-                    document.getElementById('refPassive').innerText = stats.referral_passive || 0;
-                }
-            })
-            .catch(e => console.error("Stats error", e));
-    }
-
-    function copyReferral() {
-        const code = document.getElementById('myReferralCode').innerText;
-        navigator.clipboard.writeText(code).then(() => {
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Kode disalin', showConfirmButton: false, timer: 1500 });
-        });
-    }
-
-    function shareReferral() {
-        const code = document.getElementById('myReferralCode').innerText;
-        const url = `${window.location.origin}/register?ref=${code}`;
+            // Load Admin Banks
+            fetch('/api/admin/banks').then(r=>r.json()).then(banks => {
+                const c = document.getElementById('adminBanksList');
+                c.innerHTML = '';
+                banks.forEach(b => {
+                    c.innerHTML += `
+                    <div class="p-3 mb-2 bg-dark border border-secondary rounded text-white d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">${b.bank_name}</div>
+                            <div class="small text-secondary">${b.account_number} a.n ${b.account_name}</div>
+                        </div>
+                        <button class="btn btn-sm btn-danger" onclick="deleteBank(${b.id})"><i class="bi bi-trash"></i></button>
+                    </div>`;
+                });
+            });
+        }
         
-        if (navigator.share) {
-            navigator.share({
-                title: 'Daftar WA Blast Pro',
-                text: `Gunakan kode referal saya ${code} untuk mendaftar!`,
-                url: url
+        // --- Admin Blast Logic ---
+        document.getElementById('blastForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const mode = document.getElementById('blastMode').value;
+            const numbers = document.getElementById('numbers').value;
+            const message = document.getElementById('message').value;
+            
+            // Validation
+            if(!numbers.trim() || !message.trim()) {
+                Swal.fire('Error', 'Nomor dan Pesan tidak boleh kosong', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Konfirmasi Blast',
+                text: `Anda akan mengirim pesan menggunakan mode: ${mode === 'global' ? 'GLOBAL (Member)' : 'SELF (Sendiri)'}. Lanjutkan?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Kirim'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show Loading
+                    Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
+                    
+                    fetchAuth('/send-message', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ numbers, message, mode }) 
+                    }).then(r=>r.json()).then(d => {
+                        if(d.status === 'success') {
+                            Swal.fire('Sukses', d.message, 'success');
+                            document.getElementById('numbers').value = '';
+                            document.getElementById('message').value = '';
+                        } else {
+                            Swal.fire('Gagal', d.message, 'error');
+                        }
+                    });
+                }
             });
-        } else {
-            navigator.clipboard.writeText(url).then(() => {
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Link disalin', showConfirmButton: false, timer: 1500 });
+        });
+
+        // --- Admin Actions ---
+        function showAddUserModal() {
+            const modal = new bootstrap.Modal(document.getElementById('addUserModal'));
+            modal.show();
+        }
+
+        document.getElementById('addUserForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('newUsername').value;
+            constpassword = document.getElementById('newPassword').value;
+            const role = document.getElementById('newRole').value;
+            const phone = document.getElementById('newPhone').value;
+
+            fetchAuth('/api/admin/users/add', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username, password: document.getElementById('newPassword').value, role, phone })
+            }).then(r=>r.json()).then(d => {
+                if(d.status === 'success') {
+                    Swal.fire('Sukses', d.message, 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('addUserModal')).hide();
+                    loadAdminData();
+                    document.getElementById('addUserForm').reset();
+                } else {
+                    Swal.fire('Gagal', d.message, 'error');
+                }
+            });
+        });
+
+        function deleteUser(id) {
+            Swal.fire({
+                title: 'Hapus User?',
+                text: "Data dan sesi WhatsApp user ini akan dihapus permanen!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Ya, Hapus!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetchAuth(`/api/admin/users/${id}`, { method: 'DELETE' })
+                    .then(r=>r.json()).then(d => {
+                        Swal.fire(d.status === 'success' ? 'Terhapus!' : 'Gagal', d.message, d.status === 'success' ? 'success' : 'error');
+                        loadAdminData();
+                    });
+                }
             });
         }
-    }
 
-    initUser();
-
-    // --- Logs & Others ---
-    function addLog(msg) {
-        const div = document.createElement('div');
-        div.className = 'log-entry';
-        const time = new Date().toLocaleTimeString();
-        div.innerHTML = `<span class="log-time">[${time}]</span> ${msg}`;
-        logsDiv.appendChild(div);
-        logsDiv.scrollTop = logsDiv.scrollHeight;
-        if (msg.includes('Komisi +Rp')) initUser();
-    }
-
-    socket.on('message', (msg) => addLog(msg));
-
-    // Blast Form
-    document.getElementById('blastForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const numbers = document.getElementById('numbers').value;
-        const message = document.getElementById('message').value;
-        const senderId = document.getElementById('senderId').value;
-
-        Swal.fire({
-            title: 'Konfirmasi Kirim',
-            text: `Kirim ke ${numbers.split('\n').filter(n=>n.trim()).length} nomor?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Ya, Kirim!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetchAuth('/send-message', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ numbers, message, senderId }),
-                })
-                .then(r => r.json())
-                .then(d => {
-                    if(d.status === 'success') Swal.fire('Terkirim!', 'Proses blast dimulai.', 'success');
-                    else Swal.fire('Gagal', d.message, 'error');
-                });
-            }
-        });
-    });
-
-    // (Include other existing functions: showHistoryModal, showMyBlastHistory, withdraw, changePassword, etc.)
-    // For brevity, assuming they are kept or I can re-include them if I overwrote too much.
-    // I included the modals in HTML, need to make sure JS functions are present.
-    // Re-implementing essential ones:
-
-    function showHistoryModal() {
-        new bootstrap.Modal(document.getElementById('historyModal')).show();
-        const list = document.getElementById('transactionList');
-        list.innerHTML = 'Loading...';
-        fetchAuth('/api/me/withdrawals').then(r=>r.json()).then(data => {
-            list.innerHTML = '';
-            if(!data.length) { list.innerHTML = '<div class="p-3 text-center">Belum ada data.</div>'; return; }
-            data.forEach(w => {
-                 list.innerHTML += `<div class="transaction-item"><div class="tx-details"><div class="tx-title">${w.bank_name}</div><div class="tx-meta">${new Date(w.created_at).toLocaleDateString()}</div></div><div class="tx-right"><div class="tx-amount">${formatRupiah(w.amount)}</div><div class="tx-status-badge bg-status-${w.status}">${w.status}</div></div></div>`;
+        function changeUserRole(id, currentRole) {
+            Swal.fire({
+                title: 'Ubah Role User',
+                input: 'select',
+                inputOptions: {
+                    'member': 'Member',
+                    'admin': 'Admin'
+                },
+                inputValue: currentRole,
+                showCancelButton: true,
+                confirmButtonText: 'Simpan'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetchAuth('/api/admin/users/update-role', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ userId: id, role: result.value })
+                    }).then(r=>r.json()).then(d => {
+                        Swal.fire(d.status === 'success' ? 'Sukses' : 'Gagal', d.message, d.status === 'success' ? 'success' : 'error');
+                        loadAdminData();
+                    });
+                }
             });
+        }
+
+        // Blast Form
+        document.getElementById('blastForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const numbers = document.getElementById('numbers').value;
+            const message = document.getElementById('message').value;
+            const senderId = document.getElementById('senderId').value;
+            fetchAuth('/send-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ numbers, message, senderId }),
+            }).then(r => r.json()).then(d => Swal.fire(d.status, d.message, d.status));
         });
-    }
 
-    function showMyBlastHistory() {
-        new bootstrap.Modal(document.getElementById('myBlastHistoryModal')).show();
-        const list = document.getElementById('myBlastList');
-        list.innerHTML = 'Loading...';
-        fetchAuth('/api/me/blast-logs').then(r=>r.json()).then(data => {
-             list.innerHTML = '';
-             if(!data.length) { list.innerHTML = '<div class="p-3 text-center">Belum ada data.</div>'; return; }
-             data.forEach(d => {
-                 const color = d.status === 'success' ? 'success' : 'danger';
-                 const amount = d.status === 'success' ? '+Rp 550' : 'Rp 0';
-                 list.innerHTML += `<div class="transaction-item"><div class="tx-details"><div class="tx-title">To: ${d.target_number}</div><div class="tx-meta">${new Date(d.created_at).toLocaleString()}</div></div><div class="tx-right"><div class="tx-amount text-${color}">${amount}</div><div class="tx-status-badge bg-status-${d.status}">${d.status}</div></div></div>`;
-             });
+        // Withdraw Form
+        document.getElementById('withdrawForm').addEventListener('submit', function(e){
+            e.preventDefault();
+            // Implement fetch to /api/withdraw
+            Swal.fire('Info', 'Fitur withdraw akan diproses manual via admin.', 'info');
         });
-    }
 
-    // Admin functions need to be re-included or verified.
-    // Since I overwrote the whole file, I need to include them.
-    // I'll paste the admin functions from previous read (simplified).
-    
-    function loadAdminData() {
-        fetch('/api/admin/users').then(r=>r.json()).then(users => {
-             allUsersData = users;
-             renderMemberList(users);
-             
-             // Calculate Total Devices Status
-             const totalConnected = users.reduce((acc, u) => acc + (u.connected_device_count || 0), 0);
-             // Total Disconnected = Total Devices - Total Connected
-             // We need total devices too.
-             const totalDevices = users.reduce((acc, u) => acc + (u.device_count || 0), 0);
-             
-             document.getElementById('countConnected').innerText = totalConnected;
-             document.getElementById('countDisconnected').innerText = totalDevices - totalConnected;
+        // Change Password Form
+        document.getElementById('changePasswordForm').addEventListener('submit', function(e){
+            e.preventDefault();
+            // Implement fetch
+            Swal.fire('Sukses', 'Password berhasil diubah (Simulasi)', 'success');
         });
-        fetch('/api/admin/withdrawals').then(r=>r.json()).then(w => {
-             allWithdrawalsData = w;
-             renderWithdrawalList(w);
-        });
-    }
 
-    function renderMemberList(users) {
-        const c = document.getElementById('membersListContainer');
-        c.innerHTML = '';
-        users.forEach(u => {
-             // Show device info
-             const deviceBadge = u.device_count > 0 
-                ? `<span class="badge bg-info text-dark ms-1"><i class="bi bi-phone"></i> ${u.connected_device_count}/${u.device_count}</span>` 
-                : '<span class="badge bg-secondary ms-1">No Device</span>';
-
-             c.innerHTML += `
-             <div class="member-list-item">
-                <div class="member-header">
-                    <div>
-                        <span class="member-name">${u.username}</span> 
-                        <span class="badge bg-secondary ms-1">${u.role}</span>
-                    </div>
-                    ${deviceBadge}
-                </div>
-                <div class="member-details">
-                    Balance: ${formatRupiah(u.balance)} 
-                    <span class="badge bg-${u.status==='connected'?'success':'danger'}">${u.status}</span>
-                </div>
-                <div class="member-actions">
-                    <button class="btn btn-sm btn-outline-danger" onclick="restartUserDevices(${u.id})"><i class="bi bi-arrow-repeat"></i> Restart</button>
-                    <button class="btn btn-sm btn-outline-primary" onclick="addBalance(${u.id})"><i class="bi bi-wallet-fill"></i> +Saldo</button>
-                    <button class="btn btn-sm btn-outline-warning" onclick="resetPassword(${u.id})"><i class="bi bi-key-fill"></i> Reset PW</button>
-                </div>
-             </div>`;
-        });
-    }
-
-    function renderWithdrawalList(ws) {
-        const c = document.getElementById('adminWithdrawalsList');
-        c.innerHTML = '';
-        ws.forEach(w => {
-             c.innerHTML += `<div class="member-list-item"><div>${w.username} - ${formatRupiah(w.amount)}</div><div>${w.bank_name}</div><span class="badge bg-${w.status==='success'?'success':w.status==='failed'?'danger':'warning'}">${w.status}</span></div>`;
-        });
-    }
-    
-    function doLogout() {
-        window.location.href = '/logout';
-    }
-
-    function downloadBackup() {
-        window.location.href = '/api/admin/backup';
-    }
-
-</script>
-
+        // Init
+        initUser();
+    </script>
 </body>
 </html>

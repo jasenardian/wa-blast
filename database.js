@@ -1,104 +1,119 @@
+const sqlite3 = require('sqlite3').verbose();
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
-// Determine database configuration
-// Priority: DATABASE_URL (Railway/Cloud) -> Local SQLite (Deprecated/Fallback if needed, but we are switching to PG)
-const isProduction = process.env.NODE_ENV === 'production' || process.env.DATABASE_URL;
+// --- Configuration ---
+// Priority: DATABASE_URL (Railway/Postgres) -> Local SQLite
+const isProduction = !!process.env.DATABASE_URL;
 
 let db;
+let dbAdapter;
 
 if (isProduction) {
-    console.log("Using PostgreSQL Database (Production)");
-    // Mask password in logs
-    const maskedUrl = process.env.DATABASE_URL.replace(/:[^:@]*@/, ':****@');
-    console.log(`Connecting to DATABASE_URL: ${maskedUrl}`);
-    
-    db = new Pool({
+    console.log("Using PostgreSQL Database");
+    // Create PG Pool
+    const pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false } // Required for Railway/Heroku
+        ssl: { rejectUnauthorized: false } // Required for Railway
     });
+
+    // --- PG Adapter to match SQLite API ---
+    dbAdapter = {
+        pool: pool,
+        
+        // Helper to convert ? placeholders to $1, $2, etc.
+        convertSql: (sql) => {
+            let i = 1;
+            return sql.replace(/\?/g, () => `$${i++}`);
+        },
+
+        run: function(sql, params = [], callback) {
+            // Support call without params
+            if (typeof params === 'function') {
+                callback = params;
+                params = [];
+            }
+            
+            const pgSql = this.convertSql(sql);
+            pool.query(pgSql, params, (err, res) => {
+                if (callback) {
+                    // Context for 'this' in callback (sqlite style)
+                    const context = {
+                        lastID: res?.rows[0]?.id || 0, // PG requires RETURNING id to get lastID
+                        changes: res?.rowCount || 0
+                    };
+                    callback.call(context, err);
+                }
+            });
+        },
+
+        get: function(sql, params = [], callback) {
+            if (typeof params === 'function') {
+                callback = params;
+                params = [];
+            }
+            const pgSql = this.convertSql(sql);
+            pool.query(pgSql, params, (err, res) => {
+                if (callback) callback(err, res?.rows[0]);
+            });
+        },
+
+        all: function(sql, params = [], callback) {
+            if (typeof params === 'function') {
+                callback = params;
+                params = [];
+            }
+            const pgSql = this.convertSql(sql);
+            pool.query(pgSql, params, (err, res) => {
+                if (callback) callback(err, res?.rows);
+            });
+        },
+        
+        // Explicitly for raw PG access if needed
+        query: (text, params) => pool.query(text, params)
+    };
+    
+    // Init PG
+    initPg(pool);
+
 } else {
-    // Local Development Fallback to SQLite (Optional: Better to use local PG if possible)
-    // For now, let's stick to PG logic to ensure consistency.
-    // If you run locally, provide DATABASE_URL in .env
-    console.log("Using PostgreSQL Database (Local Dev)");
-    db = new Pool({
-        // Use connection string if available, otherwise default to local pg
-        connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/wablast',
+    console.log("Using SQLite Database (Local)");
+    // SQLite connection
+    const sqliteDb = new sqlite3.Database('./whatsapp-blast.db', (err) => {
+        if (err) console.error('Database opening error: ', err);
+        else {
+            console.log('Connected to SQLite database.');
+            initSqlite(sqliteDb);
+        }
     });
+
+    // Pass-through adapter
+    dbAdapter = sqliteDb;
 }
 
-// Wrapper for Query to match SQLite style callback if needed, or better: use Async/Await everywhere in app.js
-// Since app.js uses db.run, db.get, db.all (SQLite API), we need a compatibility layer or refactor app.js.
-// REFACTORING app.js IS SAFER. But for quick migration, let's create a compatibility layer.
+// --- Initialization Functions ---
 
-const dbAdapter = {
-    // Execute a query that returns no rows (INSERT, UPDATE, DELETE)
-    run: (sql, params = [], callback) => {
-        // Convert SQLite ? placeholders to PG $1, $2...
-        let paramIndex = 1;
-        const pgSql = sql.replace(/\?/g, () => `$${paramIndex++}`);
-        
-        db.query(pgSql, params, (err, res) => {
-            if (callback) {
-                // SQLite callback: function(err) { this.lastID, this.changes }
-                const context = { 
-                    lastID: res?.rows[0]?.id || 0, // PG requires RETURNING id for lastID
-                    changes: res?.rowCount || 0
-                };
-                callback.call(context, err);
-            }
-        });
-    },
-
-    // Execute a query that returns a single row
-    get: (sql, params = [], callback) => {
-        let paramIndex = 1;
-        const pgSql = sql.replace(/\?/g, () => `$${paramIndex++}`);
-
-        db.query(pgSql, params, (err, res) => {
-            if (callback) callback(err, res?.rows[0]);
-        });
-    },
-
-    // Execute a query that returns multiple rows
-    all: (sql, params = [], callback) => {
-        let paramIndex = 1;
-        const pgSql = sql.replace(/\?/g, () => `$${paramIndex++}`);
-
-        db.query(pgSql, params, (err, res) => {
-            if (callback) callback(err, res?.rows);
-        });
-    }
-};
-
-// --- MIGRATION SCRIPT FOR POSTGRES ---
-const initDb = async () => {
-    // Only attempt connection if DB is configured (avoids crash on local if no PG running)
-    if (!process.env.DATABASE_URL && !isProduction) {
-         console.warn("WARNING: No DATABASE_URL provided. PostgreSQL init skipped. Application may crash if DB is accessed.");
-         return;
-    }
-
+// 1. PostgreSQL Initialization
+async function initPg(pool) {
     try {
-        const client = await db.connect();
+        const client = await pool.connect();
         try {
-            console.log("Initializing PostgreSQL Tables...");
-
-            // Users
+            console.log("Initializing PG Tables...");
+            
             await client.query(`
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
                     username TEXT UNIQUE NOT NULL,
                     password TEXT NOT NULL,
                     role TEXT DEFAULT 'member',
+                    phone TEXT,
                     balance INTEGER DEFAULT 0,
+                    inactive_notified BOOLEAN DEFAULT FALSE,
                     referral_code TEXT UNIQUE,
                     referred_by INTEGER
                 );
             `);
 
-            // Withdrawals
             await client.query(`
                 CREATE TABLE IF NOT EXISTS withdrawals (
                     id SERIAL PRIMARY KEY,
@@ -113,7 +128,27 @@ const initDb = async () => {
                 );
             `);
 
-            // Sessions
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS topups (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id),
+                    amount INTEGER,
+                    payment_method TEXT,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            `);
+
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS admin_banks (
+                    id SERIAL PRIMARY KEY,
+                    bank_name TEXT,
+                    account_number TEXT,
+                    account_name TEXT,
+                    is_active BOOLEAN DEFAULT TRUE
+                );
+            `);
+
             await client.query(`
                 CREATE TABLE IF NOT EXISTS whatsapp_sessions (
                     id SERIAL PRIMARY KEY,
@@ -126,7 +161,6 @@ const initDb = async () => {
                 );
             `);
 
-            // Referral Commissions
             await client.query(`
                 CREATE TABLE IF NOT EXISTS referral_commissions (
                     id SERIAL PRIMARY KEY,
@@ -138,7 +172,6 @@ const initDb = async () => {
                 );
             `);
 
-            // Blast Logs
             await client.query(`
                 CREATE TABLE IF NOT EXISTS blast_logs (
                     id SERIAL PRIMARY KEY,
@@ -152,7 +185,6 @@ const initDb = async () => {
                 );
             `);
 
-            // Blast Details
             await client.query(`
                 CREATE TABLE IF NOT EXISTS blast_log_details (
                     id SERIAL PRIMARY KEY,
@@ -165,27 +197,122 @@ const initDb = async () => {
                 );
             `);
 
-            // Default Admin
-            const adminCheck = await client.query("SELECT * FROM users WHERE username = $1", ['admin']);
-            if (adminCheck.rows.length === 0) {
+            // Create Default Admin
+            const res = await client.query("SELECT * FROM users WHERE username = $1", ['admin']);
+            if (res.rows.length === 0) {
                 const salt = bcrypt.genSaltSync(10);
                 const hash = bcrypt.hashSync('admin123', salt);
-                await client.query(
-                    "INSERT INTO users (username, password, role, balance) VALUES ($1, $2, $3, $4)",
-                    ['admin', hash, 'superadmin', 0]
-                );
+                await client.query("INSERT INTO users (username, password, role, balance) VALUES ($1, $2, 'superadmin', 0)", ['admin', hash]);
                 console.log("Default admin created (PG).");
             }
 
-            console.log("PostgreSQL Initialization Complete.");
         } finally {
             client.release();
         }
     } catch (err) {
-        console.error("PostgreSQL Init Error:", err);
+        console.error("PG Init Error:", err);
     }
-};
+}
 
-initDb();
+// 2. SQLite Initialization
+function initSqlite(db) {
+    db.serialize(() => {
+        db.run(`CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT DEFAULT 'member',
+            phone TEXT,
+            balance INTEGER DEFAULT 0,
+            inactive_notified BOOLEAN DEFAULT FALSE,
+            referral_code TEXT UNIQUE,
+            referred_by INTEGER
+        )`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS withdrawals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            amount INTEGER,
+            account_name TEXT,
+            bank_name TEXT,
+            account_number TEXT,
+            whatsapp TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS topups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            amount INTEGER,
+            payment_method TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS admin_banks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bank_name TEXT,
+            account_number TEXT,
+            account_name TEXT,
+            is_active BOOLEAN DEFAULT 1
+        )`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            session_name TEXT,
+            session_id TEXT UNIQUE,
+            status TEXT DEFAULT 'disconnected',
+            device_info TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS referral_commissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            referrer_id INTEGER,
+            referred_user_id INTEGER,
+            amount INTEGER,
+            description TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(referrer_id) REFERENCES users(id)
+        )`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS blast_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id INTEGER,
+            sender_mode TEXT,
+            total_target INTEGER,
+            success_count INTEGER DEFAULT 0,
+            failed_count INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'running',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS blast_log_details (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            blast_id INTEGER,
+            sender_id INTEGER,
+            target_number TEXT,
+            status TEXT,
+            error_msg TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(blast_id) REFERENCES blast_logs(id)
+        )`);
+
+        db.get("SELECT * FROM users WHERE username = 'admin'", (err, row) => {
+            if (!row) {
+                const salt = bcrypt.genSaltSync(10);
+                const hash = bcrypt.hashSync('admin123', salt);
+                db.run("INSERT INTO users (username, password, role, balance) VALUES (?, ?, ?, ?)", 
+                    ['admin', hash, 'superadmin', 0]);
+                console.log("Default admin created (SQLite).");
+            }
+        });
+    });
+}
 
 module.exports = dbAdapter;
