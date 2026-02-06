@@ -342,6 +342,27 @@
         .member-list-item { background: var(--bg-card); border: 1px solid rgba(255,255,255,0.05); }
         .member-name { color: white; }
 
+        /* Blast History Table Improvements */
+        .table-responsive {
+            max-height: 400px; /* Limit height */
+            overflow-y: auto; /* Enable scroll */
+        }
+        .table-dark-custom {
+            background-color: var(--bg-card);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        .table-dark-custom th {
+            background-color: #1e293b;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        .blast-history-list-mobile {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
         /* Utilities */
         .text-accent-purple { color: var(--accent-purple); }
         .text-accent-yellow { color: var(--accent-yellow); }
@@ -553,38 +574,48 @@
             <!-- Informasi Section -->
             <h5 class="mb-3">Informasi</h5>
             
-            <!-- Program Referral -->
-            <div class="info-card position-relative">
-                <i class="bi bi-bullseye position-absolute top-0 end-0 m-3 text-accent-purple fs-4"></i>
-                <div class="info-title mb-3">Program Referral</div>
-                <div class="row">
-                    <div class="col-6">
-                        <div class="info-label">Total Referral</div>
-                        <div class="info-value text-accent-purple fs-5" id="dashRefTotal">0</div>
+            <!-- Riwayat Blast (Superadmin Only) -->
+            <div id="dashboardBlastHistory" style="display: none;" class="mt-4">
+                <h5 class="mb-3 d-flex align-items-center justify-content-between">
+                    <span>Riwayat Blast (Global)</span>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="loadBlastHistory()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </h5>
+                
+                <div class="card bg-dark border border-secondary border-opacity-25 rounded-2 overflow-hidden">
+                    <!-- Desktop Table -->
+                    <div class="table-responsive d-none d-md-block">
+                        <table class="table table-dark table-hover table-dark-custom mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th class="ps-3 py-3 text-secondary small text-uppercase">Waktu</th>
+                                    <th class="py-3 text-secondary small text-uppercase">Admin</th>
+                                    <th class="py-3 text-secondary small text-uppercase">Mode</th>
+                                    <th class="text-center py-3 text-secondary small text-uppercase">Total</th>
+                                    <th class="text-center py-3 text-secondary small text-uppercase">Sukses</th>
+                                    <th class="text-center py-3 text-secondary small text-uppercase">Gagal</th>
+                                    <th class="text-center py-3 text-secondary small text-uppercase">Status</th>
+                                    <th class="text-end pe-3 py-3 text-secondary small text-uppercase">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="blastHistoryTable">
+                                <!-- Data populated by JS -->
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="col-6">
-                        <div class="info-label">Rate Komisi</div>
-                        <div class="info-value text-accent-yellow fs-5">Rp60</div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Tarif & Ketentuan -->
-            <div class="info-card position-relative">
-                <i class="bi bi-file-text position-absolute top-0 end-0 m-3 text-white fs-4"></i>
-                <div class="info-title mb-3">Tarif & Ketentuan</div>
-                <div class="info-row">
-                    <span class="info-label">Rate per pesan:</span>
-                    <span class="info-value">Rp550</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Min. withdraw:</span>
-                    <span class="info-value">Rp10.000</span>
+                    <!-- Mobile List -->
+                    <div class="d-md-none p-2 blast-history-list-mobile" id="blastHistoryList">
+                        <!-- Data populated by JS -->
+                    </div>
+                    
+                    <div id="blastHistoryEmpty" class="text-center py-5 d-none">
+                        <i class="bi bi-inbox fs-1 text-secondary opacity-50 mb-2"></i>
+                        <p class="text-secondary small m-0">Belum ada riwayat blast.</p>
+                    </div>
                 </div>
             </div>
-            
-       
-        </div>
 
         <!-- Section: Withdraw -->
         <div id="section-withdraw" style="display: none;">
