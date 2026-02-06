@@ -225,16 +225,16 @@ async function initPg(pool) {
                 console.log("Default admin created (PG).");
             }
 
+            console.log("PG Tables Initialized Successfully.");
+            break; // Success
+        } catch (err) {
+            console.error(`PG Init Attempt Failed (Retries left: ${retries}):`, err.message);
+            retries--;
+            if (retries === 0) console.error("PG Init Failed after multiple attempts.");
+            else await sleep(5000);
         } finally {
             if (client) client.release();
         }
-        console.log("PG Tables Initialized Successfully.");
-        break; // Success
-    } catch (err) {
-        console.error(`PG Init Attempt Failed (Retries left: ${retries}):`, err.message);
-        retries--;
-        if (retries === 0) console.error("PG Init Failed after multiple attempts.");
-        else await sleep(5000);
     }
 }
 
