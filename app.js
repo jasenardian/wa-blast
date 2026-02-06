@@ -151,7 +151,7 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
                 '--disable-accelerated-2d-canvas',
                 '--no-first-run',
                 '--no-zygote',
-                '--single-process',
+                // '--single-process', // DISABLED: Causes Protocol error (Target closed) on Railway
                 '--disable-gpu'
             ],
         },
@@ -246,6 +246,13 @@ reason: ${reason}
 
     client.initialize().catch(err => {
         console.error(`Failed to initialize client for Session ${dbSessionId}:`, err.message);
+        // Retry logic?
+        setTimeout(() => {
+             console.log(`Retrying initialization for Session ${dbSessionId}...`);
+             // Re-create client not possible here easily without recursion/refactor. 
+             // Just mark as disconnected so user can restart manually.
+             db.run("UPDATE whatsapp_sessions SET status = 'disconnected' WHERE id = ?", [dbSessionId]);
+        }, 5000);
         io.to(userId.toString()).emit('message', `Gagal inisialisasi sesi #${dbSessionId}: ${err.message}`);
     });
 
