@@ -838,11 +838,22 @@ app.get('/api/me/blast-logs', isAuthenticated, (req, res) => {
 });
 
 app.post('/api/withdraw', isAuthenticated, (req, res) => {
-    const { amount, bank_name, account_number, account_name, whatsapp } = req.body;
+    let { amount, bank_name, account_number, account_name, whatsapp } = req.body;
     const userId = req.session.userId;
 
-    db.get("SELECT balance FROM users WHERE id = ?", [userId], (err, row) => {
+    db.get("SELECT balance, bank_name, account_number, account_name, phone FROM users WHERE id = ?", [userId], (err, row) => {
         if (err || !row) return res.status(500).json({ status: 'error', message: 'Database error' });
+        
+        // Use stored profile data if not provided in request
+        bank_name = bank_name || row.bank_name;
+        account_number = account_number || row.account_number;
+        account_name = account_name || row.account_name;
+        whatsapp = whatsapp || row.phone;
+
+        if (!bank_name || !account_number || !account_name) {
+             return res.json({ status: 'error', message: 'Data bank belum lengkap. Silakan lengkapi di menu Profil.' });
+        }
+
         if (amount < 10000) return res.json({ status: 'error', message: 'Minimal penarikan Rp 10.000!' });
         if (row.balance < amount) return res.json({ status: 'error', message: 'Saldo tidak mencukupi!' });
 
@@ -854,7 +865,26 @@ app.post('/api/withdraw', isAuthenticated, (req, res) => {
             db.run(`INSERT INTO withdrawals (user_id, amount, bank_name, account_number, account_name, whatsapp) 
                     VALUES (?, ?, ?, ?, ?, ?)`, 
                     [userId, amount, bank_name, account_number, account_name, whatsapp], (err) => {
-                if (err) return res.status(500).json({ status: 'error', message: 'Failed to create request' });
+                if (err) {
+                    // Refund balance if insert fails
+                    db.run("UPDATE users SET balance = balance + ? WHERE id = ?", [amount, userId]);
+                    return res.status(500).json({ status: 'error', message: 'Failed to create request' });
+                }
+                
+                // Telegram Notification
+                const msg = `
+💸 *NEW WITHDRAW REQUEST*
+━━━━━━━━━━━━━━━━━━━
+👤 User: ${req.session.username}
+💰 Amount: Rp${parseInt(amount).toLocaleString()}
+🏦 Bank: ${bank_name}
+💳 Acc: ${account_number}
+busts Name: ${account_name}
+📱 WA: ${whatsapp}
+📅 Date: ${new Date().toLocaleString()}
+━━━━━━━━━━━━━━━━━━━`;
+                sendTelegramNotification(msg);
+
                 res.json({ status: 'success', message: 'Permintaan penarikan berhasil dikirim.' });
             });
         });

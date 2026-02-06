@@ -1648,11 +1648,80 @@
                 warningEl.className = "d-flex align-items-center small text-success fw-bold";
             }
 
-            // Check Bank Data Logic (Mock for now)
-            // Ideally check user.bank_name etc.
-            // For now, assume if balance > 0 enable form
-            // document.getElementById('wdBankWarning').style.display = 'none';
-            // document.getElementById('wdRequestForm').style.display = 'block';
+            // Check Bank Data Logic
+            // Enable form if profile is complete (checked via initUser/profile fields)
+            const bankName = document.getElementById('profileBank').value;
+            const bankRek = document.getElementById('profileRek').value;
+            
+            if (bankName && bankName !== 'Pilih Bank' && bankRek) {
+                 document.getElementById('wdBankWarning').style.display = 'none';
+                 document.getElementById('wdRequestForm').style.display = 'block';
+            } else {
+                 document.getElementById('wdBankWarning').style.display = 'block';
+                 document.getElementById('wdRequestForm').style.display = 'none';
+            }
+            
+            loadWithdrawHistory();
+            loadTopupHistory();
+        }
+
+        function loadWithdrawHistory() {
+            fetchAuth('/api/me/withdrawals').then(r=>r.json()).then(rows => {
+                const c = document.getElementById('wdHistoryContainer');
+                if(rows.length === 0) {
+                    c.innerHTML = `
+                    <div class="position-relative d-inline-block mb-3 opacity-50">
+                        <i class="bi bi-file-earmark-text fs-1 text-warning"></i>
+                    </div>
+                    <h6 class="text-white">Belum Ada Riwayat</h6>
+                    <div class="small text-muted">Riwayat withdraw akan muncul di sini</div>`;
+                    return;
+                }
+                
+                c.innerHTML = '<div class="list-group list-group-flush">';
+                rows.forEach(r => {
+                    const statusClass = r.status === 'success' ? 'text-success' : (r.status === 'pending' ? 'text-warning' : 'text-danger');
+                    c.innerHTML += `
+                    <div class="list-group-item bg-transparent border-secondary border-opacity-10 text-white d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <div class="fw-bold">${formatRupiah(r.amount)}</div>
+                            <div class="small text-secondary">${new Date(r.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="${statusClass} small fw-bold">${r.status.toUpperCase()}</div>
+                            <div class="small text-muted" style="font-size: 0.7rem;">${r.bank_name}</div>
+                        </div>
+                    </div>`;
+                });
+                c.innerHTML += '</div>';
+            });
+        }
+
+        function loadTopupHistory() {
+            fetchAuth('/api/me/topups').then(r=>r.json()).then(rows => {
+                const c = document.getElementById('topupHistoryContainer');
+                if(rows.length === 0) {
+                    c.innerHTML = '<div class="text-center py-4 text-secondary">Belum ada riwayat topup.</div>';
+                    return;
+                }
+                
+                c.innerHTML = '<div class="list-group list-group-flush">';
+                rows.forEach(r => {
+                    const statusClass = r.status === 'success' ? 'text-success' : (r.status === 'pending' ? 'text-warning' : 'text-danger');
+                    c.innerHTML += `
+                    <div class="list-group-item bg-transparent border-secondary border-opacity-10 text-white d-flex justify-content-between align-items-center px-0">
+                        <div>
+                            <div class="fw-bold">${formatRupiah(r.amount)}</div>
+                            <div class="small text-secondary">${new Date(r.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="${statusClass} small fw-bold">${r.status.toUpperCase()}</div>
+                            <div class="small text-muted" style="font-size: 0.7rem;">${r.payment_method}</div>
+                        </div>
+                    </div>`;
+                });
+                c.innerHTML += '</div>';
+            });
         }
 
         function loadUserStats() {
@@ -2182,7 +2251,39 @@
             }).then(r => r.json()).then(d => Swal.fire(d.status, d.message, d.status));
         });
 
-        // Withdraw Form
+        // Withdraw Form (Tab)
+        document.getElementById('wdRequestForm').addEventListener('submit', function(e){
+            e.preventDefault();
+            const amount = document.getElementById('wdRequestAmount').value;
+            
+            Swal.fire({
+                title: 'Konfirmasi Penarikan',
+                text: `Anda akan menarik saldo sebesar ${formatRupiah(amount)} ke rekening terdaftar. Lanjutkan?`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Tarik'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
+                    
+                    fetchAuth('/api/withdraw', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ amount })
+                    }).then(r=>r.json()).then(d => {
+                        if(d.status === 'success') {
+                            Swal.fire('Sukses', d.message, 'success');
+                            document.getElementById('wdRequestForm').reset();
+                            initUser(); // Refresh balance and UI
+                        } else {
+                            Swal.fire('Gagal', d.message, 'error');
+                        }
+                    });
+                }
+            });
+        });
+
+        // Withdraw Form (Modal - Legacy/Unused but kept for safety or if triggered elsewhere)
         document.getElementById('withdrawForm').addEventListener('submit', function(e){
             e.preventDefault();
             // Implement fetch to /api/withdraw
