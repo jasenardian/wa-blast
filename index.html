@@ -1658,24 +1658,24 @@
 
                     currentUserBalance = user.balance;
                     currentUserReferralCode = user.referral_code;
-                    document.getElementById('headerUsername').innerText = user.username;
-                    document.getElementById('greetUsername').innerText = user.username;
-                    document.getElementById('headerAvatar').innerText = user.username.charAt(0).toUpperCase();
-                    document.getElementById('dashBalance').innerText = formatRupiah(user.balance);
-                    document.getElementById('memberSince').innerText = "06 Feb 2026"; 
+                    if(document.getElementById('headerUsername')) document.getElementById('headerUsername').innerText = user.username;
+                    if(document.getElementById('greetUsername')) document.getElementById('greetUsername').innerText = user.username;
+                    if(document.getElementById('headerAvatar')) document.getElementById('headerAvatar').innerText = user.username.charAt(0).toUpperCase();
+                    if(document.getElementById('dashBalance')) document.getElementById('dashBalance').innerText = formatRupiah(user.balance);
+                    if(document.getElementById('memberSince')) document.getElementById('memberSince').innerText = "06 Feb 2026"; 
                     
                     // Profile Data
-                    document.getElementById('profileUsername').value = user.username;
-                    document.getElementById('profileSince').innerText = "06 Feb 2026";
-                    document.getElementById('profileRole').innerText = user.role.toUpperCase();
+                    if(document.getElementById('profileUsername')) document.getElementById('profileUsername').value = user.username;
+                    if(document.getElementById('profileSince')) document.getElementById('profileSince').innerText = "06 Feb 2026";
+                    if(document.getElementById('profileRole')) document.getElementById('profileRole').innerText = user.role.toUpperCase();
                     
-                    if(user.bank_name) document.getElementById('profileBank').value = user.bank_name;
-                    if(user.account_number) document.getElementById('profileRek').value = user.account_number;
-                    if(user.account_name) document.getElementById('profileName').value = user.account_name;
+                    if(user.bank_name && document.getElementById('profileBank')) document.getElementById('profileBank').value = user.bank_name;
+                    if(user.account_number && document.getElementById('profileRek')) document.getElementById('profileRek').value = user.account_number;
+                    if(user.account_name && document.getElementById('profileName')) document.getElementById('profileName').value = user.account_name;
 
                     // Admin Access
                     if(user.role === 'superadmin') {
-                        document.getElementById('desktop-nav-admin').style.display = 'flex';
+                        if(document.getElementById('desktop-nav-admin')) document.getElementById('desktop-nav-admin').style.display = 'flex';
                         // Show History Section in Dashboard
                         const histSection = document.getElementById('dashboardBlastHistory');
                         if(histSection) {
@@ -1693,10 +1693,13 @@
                     }
                     
                     // Show Upgrade Button if Member
-                    if(user.role === 'member') {
-                        document.getElementById('upgradeProArea').style.display = 'block';
-                    } else {
-                        document.getElementById('upgradeProArea').style.display = 'none';
+                    const upgradeArea = document.getElementById('upgradeProArea');
+                    if(upgradeArea) {
+                        if(user.role === 'member') {
+                            upgradeArea.style.display = 'block';
+                        } else {
+                            upgradeArea.style.display = 'none';
+                        }
                     }
 
                     window.myReferralCode = user.referral_code;
