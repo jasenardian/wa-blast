@@ -103,6 +103,12 @@ const sessionMiddleware = session({
 });
 app.use(sessionMiddleware);
 
+// Debug Session Middleware
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Session ID: ${req.sessionID} - User: ${req.session.userId}`);
+    next();
+});
+
 // --- Helper Functions ---
 function sendTelegramNotification(message, options = {}) {
     return new Promise((resolve) => {

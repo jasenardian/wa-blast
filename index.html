@@ -1633,7 +1633,8 @@
         let currentUserReferralCode = '';
 
         function initUser() {
-            fetch('/api/me')
+            // Add credentials: 'include' to send cookies
+            fetch('/api/me', { credentials: 'include' })
                 .then(res => {
                     // Check if redirected to login (Session Expired)
                     if (res.url && res.url.includes('/login')) {
