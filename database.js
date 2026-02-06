@@ -204,6 +204,9 @@ async function initPg(pool) {
                 await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS inactive_notified BOOLEAN DEFAULT FALSE");
                 await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT UNIQUE");
                 await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER");
+                await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bank_name TEXT");
+                await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_number TEXT");
+                await client.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_name TEXT");
                 console.log("Schema migration completed.");
             } catch (err) {
                 console.error("Migration Warning (Non-fatal):", err.message);
@@ -238,7 +241,10 @@ function initSqlite(db) {
             balance INTEGER DEFAULT 0,
             inactive_notified BOOLEAN DEFAULT FALSE,
             referral_code TEXT UNIQUE,
-            referred_by INTEGER
+            referred_by INTEGER,
+            bank_name TEXT,
+            account_number TEXT,
+            account_name TEXT
         )`);
 
         db.run(`CREATE TABLE IF NOT EXISTS withdrawals (
@@ -314,6 +320,19 @@ function initSqlite(db) {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(blast_id) REFERENCES blast_logs(id)
         )`);
+
+        // --- SQLite Auto Migration ---
+        const migrations = [
+            "ALTER TABLE users ADD COLUMN bank_name TEXT",
+            "ALTER TABLE users ADD COLUMN account_number TEXT",
+            "ALTER TABLE users ADD COLUMN account_name TEXT"
+        ];
+
+        migrations.forEach(sql => {
+            db.run(sql, (err) => {
+                // Ignore error if column exists
+            });
+        });
 
         db.get("SELECT * FROM users WHERE username = 'admin'", (err, row) => {
             if (!row) {

@@ -394,7 +394,7 @@ app.get('/logout', (req, res) => {
 });
 
 app.get('/api/me', isAuthenticated, (req, res) => {
-    db.get("SELECT balance, referral_code FROM users WHERE id = ?", [req.session.userId], (err, row) => {
+    db.get("SELECT balance, referral_code, bank_name, account_number, account_name FROM users WHERE id = ?", [req.session.userId], (err, row) => {
         if (err) return res.status(500).json({ error: 'Database error' });
         
         res.json({
@@ -402,8 +402,20 @@ app.get('/api/me', isAuthenticated, (req, res) => {
             username: req.session.username,
             role: req.session.role,
             balance: row ? row.balance : 0,
-            referral_code: row ? row.referral_code : '-'
+            referral_code: row ? row.referral_code : '-',
+            bank_name: row ? row.bank_name : '',
+            account_number: row ? row.account_number : '',
+            account_name: row ? row.account_name : ''
         });
+    });
+});
+
+app.post('/api/me/profile', isAuthenticated, (req, res) => {
+    const { bank_name, account_number, account_name } = req.body;
+    db.run("UPDATE users SET bank_name = ?, account_number = ?, account_name = ? WHERE id = ?", 
+        [bank_name, account_number, account_name, req.session.userId], (err) => {
+        if (err) return res.json({ status: 'error', message: err.message });
+        res.json({ status: 'success', message: 'Profil berhasil diperbarui' });
     });
 });
 
