@@ -1136,21 +1136,41 @@
                          
                          <div class="alert alert-info small border-0 bg-opacity-10 bg-info text-info mb-3">
                               <div class="fw-bold mb-1"><i class="bi bi-info-circle me-1"></i> Informasi Paket Blast</div>
-                              <div>Biaya default: <strong>Rp900/pesan</strong></div>
-                              <div>Diskon >10000 pesan: <strong>Rp800/pesan</strong></div>
+                              <div id="blastInfoAdmin" style="display:none;">
+                                  <div>Biaya default: <strong>Rp900/pesan</strong></div>
+                                  <div>Diskon >10000 pesan: <strong>Rp800/pesan</strong></div>
+                              </div>
+                              <div id="blastInfoSuperadmin" style="display:none;">
+                                  <div class="text-success fw-bold"><i class="bi bi-star-fill me-1"></i> SUPERADMIN MODE: GRATIS (Tanpa Biaya)</div>
+                              </div>
                               <div class="mt-2 text-warning"><i class="bi bi-exclamation-triangle me-1"></i> Admin menggunakan perangkat Member secara acak (Crowdsourcing).</div>
                           </div>
 
                          <form id="blastForm">
-                            <label class="small text-muted mb-1">Metode Pengiriman</label>
-                            <select class="form-select mb-3 bg-dark text-white border-secondary" id="blastMode">
-                                <option value="global">🌐 Crowdsourcing (Gunakan Perangkat Member Acak)</option>
-                                <option value="self">📱 Perangkat Saya Sendiri</option>
-                            </select>
+                            <div class="mb-3">
+                                <label class="small text-muted mb-1">Metode Pengiriman</label>
+                                <select class="form-select bg-dark text-white border-secondary" id="blastMode">
+                                    <option value="global">🌐 Crowdsourcing (Gunakan Perangkat Member Acak)</option>
+                                    <option value="self">📱 Perangkat Saya Sendiri</option>
+                                </select>
+                            </div>
                             
-                            <textarea class="form-control mb-3 bg-dark text-white border-secondary" id="numbers" rows="3" placeholder="Nomor Tujuan (Satu nomor per baris)"></textarea>
-                            <textarea class="form-control mb-3 bg-dark text-white border-secondary" id="message" rows="3" placeholder="Pesan"></textarea>
-                            <button type="submit" class="btn btn-success w-100">Kirim Pesan</button>
+                            <div class="mb-3">
+                                <label class="small text-muted mb-1">Daftar Nomor Tujuan</label>
+                                <textarea class="form-control bg-dark text-white border-secondary" id="numbers" rows="5" placeholder="Contoh:&#10;081234567890&#10;6281234567891&#10;..."></textarea>
+                                <div class="form-text text-secondary small">Masukkan satu nomor per baris. Mendukung awalan 0, 62, atau +62.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="small text-muted mb-1">Isi Pesan</label>
+                                <textarea class="form-control bg-dark text-white border-secondary" id="message" rows="5" placeholder="Halo kak, promo spesial hari ini..."></textarea>
+                                <div class="form-text text-secondary small">
+                                    Tips: Gunakan <strong>Spintax</strong> untuk meminimalisir banned.<br>
+                                    Contoh: <code>{Halo|Hai|Pagi} kak, {apa kabar?|sehat selalu ya?}</code>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-success w-100 py-2 fw-bold"><i class="bi bi-send-fill me-2"></i> Kirim Pesan</button>
                          </form>
                      </div>
                  </div>
@@ -1436,6 +1456,14 @@
                     if(user.role === 'superadmin') {
                         document.getElementById('desktop-nav-admin').style.display = 'flex';
                         document.getElementById('desktop-nav-history').style.display = 'flex';
+                        
+                        // Show Superadmin specific info in Blast Tab
+                        const blastInfoSuper = document.getElementById('blastInfoSuperadmin');
+                        if(blastInfoSuper) blastInfoSuper.style.display = 'block';
+                    } else if (user.role === 'admin') {
+                         // Show Admin specific info (costs)
+                         const blastInfoAdmin = document.getElementById('blastInfoAdmin');
+                         if(blastInfoAdmin) blastInfoAdmin.style.display = 'block';
                     }
                     
                     // Show Upgrade Button if Member
@@ -2088,6 +2116,32 @@
             });
         }
 
+        function updateWithdrawStatus(id, status) {
+            Swal.fire({
+                title: status === 'success' ? 'Setujui Penarikan?' : 'Tolak Penarikan?',
+                text: status === 'success' ? 'Pastikan Anda sudah mentransfer dana ke user.' : 'Saldo akan dikembalikan ke user jika ditolak? (Logic refund belum otomatis di sisi server untuk reject manual, pastikan cek database)',
+                icon: status === 'success' ? 'question' : 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Lanjutkan',
+                confirmButtonColor: status === 'success' ? '#198754' : '#dc3545'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetchAuth('/api/admin/withdrawals/update', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ id, status })
+                    }).then(r=>r.json()).then(d => {
+                        if(d.status === 'success') {
+                            Swal.fire('Sukses', 'Status withdraw diperbarui', 'success');
+                            loadAdminData();
+                        } else {
+                            Swal.fire('Gagal', d.message, 'error');
+                        }
+                    });
+                }
+            });
+        }
+
         // --- Admin Functions ---
         function loadAdminData() {
             fetch('/api/admin/users').then(r=>r.json()).then(users => {
@@ -2175,8 +2229,35 @@
             fetch('/api/admin/withdrawals').then(r=>r.json()).then(list => {
                 const c = document.getElementById('adminWithdrawalsList');
                 c.innerHTML = '';
+                if(list.length === 0) c.innerHTML = '<div class="text-center text-muted py-3">Belum ada permintaan withdraw</div>';
+
                 list.forEach(w => {
-                    c.innerHTML += `<div class="p-3 mb-2 bg-dark border border-secondary rounded text-white">${w.username} - ${formatRupiah(w.amount)} (${w.status})</div>`;
+                    let actionButtons = '';
+                    if(w.status === 'pending') {
+                        actionButtons = `
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-success" onclick="updateWithdrawStatus(${w.id}, 'success')" title="Setujui"><i class="bi bi-check-lg"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="updateWithdrawStatus(${w.id}, 'failed')" title="Tolak"><i class="bi bi-x-lg"></i></button>
+                        </div>`;
+                    }
+
+                    const statusColor = w.status === 'success' ? 'text-success' : (w.status === 'pending' ? 'text-warning' : 'text-danger');
+
+                    c.innerHTML += `
+                    <div class="p-3 mb-2 bg-dark border border-secondary rounded text-white d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">${w.username}</div>
+                            <div class="small text-white-50">
+                                ${formatRupiah(w.amount)} - ${w.bank_name} (${w.account_number})
+                                <br>a.n ${w.account_name}
+                            </div>
+                            <div class="small text-secondary mt-1"><i class="bi bi-clock"></i> ${new Date(w.created_at).toLocaleString()}</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="${statusColor} fw-bold mb-2">${w.status.toUpperCase()}</div>
+                            ${actionButtons}
+                        </div>
+                    </div>`;
                 });
             });
 

@@ -1141,6 +1141,7 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
                           io.to(currentUserId.toString()).emit('message', `❌ [via ${sender.name}] Gagal ke ${number} (Unregistered)`);
                           failCount++;
                           logError = 'Unregistered number';
+                          logStatus = 'failed';
                       }
                       
                       const delay = Math.floor(Math.random() * (5000 - 1000 + 1)) + 1000;
@@ -1150,6 +1151,7 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
                       io.to(currentUserId.toString()).emit('message', `❌ Error: ${error.message}`);
                       failCount++;
                       logError = error.message;
+                      logStatus = 'failed';
                   }
 
                   db.run("INSERT INTO blast_log_details (blast_id, sender_id, target_number, status, error_msg) VALUES (?, ?, ?, ?, ?)",
