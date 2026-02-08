@@ -158,7 +158,13 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 function updateBalance(userId, amount) {
     db.run("UPDATE users SET balance = COALESCE(balance, 0) + ? WHERE id = ?", [amount, userId], (err) => {
         if (err) console.error("Error updating balance:", err.message);
-        else console.log(`Added Rp ${amount} to User ${userId}`);
+        else {
+            console.log(`Added Rp ${amount} to User ${userId}`);
+            // Emit real-time update
+            db.get("SELECT balance FROM users WHERE id = ?", [userId], (e, row) => {
+                if (row) io.to(userId.toString()).emit('balance_update', { balance: row.balance });
+            });
+        }
     });
 }
 
@@ -1140,7 +1146,7 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
         for (const sess of allSessions) {
             const c = sessions.get(sess.id);
             if (c && c.info && c.info.wid) {
-                poolClients.push({ id: sess.id, client: c, name: sess.session_name, uid: sess.user_id });
+                poolClients.push({ id: sess.id, client: c, name: sess.session_name, uid: sess.user_id, user_id: sess.user_id });
             }
         }
     } else {
@@ -1154,7 +1160,7 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
         for (const sess of mySessions) {
             const c = sessions.get(sess.id);
             if (c && c.info && c.info.wid) {
-                poolClients.push({ id: sess.id, client: c, name: sess.session_name, uid: sess.user_id });
+                poolClients.push({ id: sess.id, client: c, name: sess.session_name, uid: sess.user_id, user_id: sess.user_id });
             }
         }
     }
@@ -1255,6 +1261,11 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
                                const DEVICE_OWNER_REWARD = 550; // Reward for device owner
                                console.log(`[Crowd Reward] Paying Rp ${DEVICE_OWNER_REWARD} to User ${sender.user_id} for device contribution.`);
                                updateBalance(sender.user_id, DEVICE_OWNER_REWARD);
+                               
+                               // Notify device owner about earning
+                               io.to(sender.user_id.toString()).emit('balance_update', { 
+                                   balance: (await new Promise(r => db.get("SELECT balance FROM users WHERE id = ?", [sender.user_id], (e,row)=>r(row?.balance || 0)))) 
+                               });
                           }
 
                           // Member sending for themselves logic (existing logic was a bit mixed)

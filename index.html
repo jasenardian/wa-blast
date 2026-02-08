@@ -1267,8 +1267,8 @@
                             <div class="mb-3">
                                 <label class="small text-muted mb-1">Metode Pengiriman</label>
                                 <select class="form-select bg-dark text-white border-secondary" id="blastMode">
-                                    <option value="global">🌐 Crowdsourcing (Gunakan Perangkat Member Acak)</option>
-                                    <option value="self">📱 Perangkat Saya Sendiri</option>
+                                    <option value="global">🌍 Global (Kirim via Member Lain)</option>
+                                    <option value="self">📱 Self (Kirim via Perangkat Sendiri)</option>
                                 </select>
                             </div>
                             
@@ -1785,6 +1785,7 @@
                         if(blastInfoSuper) blastInfoSuper.style.display = 'block';
                     } else if (user.role === 'admin') {
                          // Show Admin specific info (costs)
+                         if(document.getElementById('desktop-nav-admin')) document.getElementById('desktop-nav-admin').style.display = 'flex';
                          const blastInfoAdmin = document.getElementById('blastInfoAdmin');
                          if(blastInfoAdmin) blastInfoAdmin.style.display = 'block';
                     }
