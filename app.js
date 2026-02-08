@@ -668,8 +668,11 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                        await sleep(1000);
                        
                        // Emit the code to the specific user's socket room
-                       io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: code });
-                       io.to(userId.toString()).emit('message', `Kode Pairing: ${code}`);
+                       // Ensure code is a string
+                       const finalCode = String(code || '');
+                       console.log(`Sending Pairing Code: ${finalCode}`);
+                       io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: finalCode });
+                       io.to(userId.toString()).emit('message', `Kode Pairing: ${finalCode}`);
                    } catch (innerErr) {
                        console.error("Pairing Code Inner Error:", innerErr.message);
                        // If error is "Protocol error (Runtime.callFunctionOn): Target closed", browser crashed
