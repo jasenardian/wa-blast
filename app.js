@@ -644,21 +644,20 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                    if (num.startsWith('0')) num = '62' + num.slice(1);
                    
                    // Extra delay to ensure WA Web modules (Store, Registration) are fully loaded after QR appears
-                   console.log(`QR received. Waiting 10s for modules to stabilize...`);
-                   await sleep(10000); // Increase to 10s
+                   console.log(`QR received. Waiting 15s for modules to stabilize...`);
+                   await sleep(15000); // Increase to 15s - Aggressive wait
 
                    try {
-                       // Inject custom function to expose WWebJS internals if needed, 
-                       // but usually requestPairingCode handles it.
-                       // The error "window.onCodeReceivedEvent is not a function" suggests an issue with 
-                       // how Puppeteer/WWebJS is interacting with the page context.
-                       // Sometimes reloading the page or waiting longer helps.
-                       
-                       // Let's try to wait for the specific module exposure
+                       // Inject polyfill for onCodeReceivedEvent if missing
+                       // This is the core fix: define the missing function manually in the browser context
                        await client.pupPage.evaluate(() => {
-                           // Attempt to ensure WWebJS internal Store is ready
-                           // This is a hacky fix for some WWeb versions
-                           if (!window.Store) return; 
+                           if (!window.onCodeReceivedEvent) {
+                               window.onCodeReceivedEvent = (code) => {
+                                   window.pairingCode = code;
+                               };
+                           }
+                           // Force load modules if possible
+                           if (window.Store && window.Store.Registration) return;
                        });
 
                        // requestPairingCode returns Promise<string>
