@@ -472,7 +472,7 @@
                         <div class="tile-badge" id="earnBadge"></div>
                         <div class="stats-icon-circle"><i class="bi bi-currency-dollar"></i></div>
                         <div class="stats-value" style="font-size: 0.9rem;" id="dashStatEarn">0</div>
-                        <div class="stats-label">EARNING</div>
+                        <div class="stats-label">PENDAPATAN</div>
                     </div>
                 </div>
             </div>
@@ -2376,8 +2376,23 @@
 
         socket.on('pairing_code', data => {
             if(currentScanningSessionId == data.sessionId) {
-                document.getElementById('otpCodeDisplay').innerText = data.code;
-                document.getElementById('newDeviceStatus').innerText = "Masukkan kode di HP";
+                document.getElementById('newDeviceQr').style.display = 'none';
+                document.getElementById('otpDisplayArea').style.display = 'block';
+                
+                // Format code with spaces if possible (usually comes as 8 chars like ABCDEFGH)
+                // Let's just show it directly
+                const formattedCode = data.code.split('').join(' ');
+                
+                document.getElementById('otpCodeDisplay').innerText = formattedCode;
+                document.getElementById('newDeviceStatus').className = "fw-bold text-success mt-3";
+                document.getElementById('newDeviceStatus').innerText = "Masukkan kode di HP Anda";
+                
+                // Show instruction
+                Swal.fire({
+                    title: 'Kode Pairing Diterima!',
+                    text: 'Buka WhatsApp di HP > Perangkat Tertaut > Tautkan Perangkat > Tautkan dengan No. HP > Masukkan Kode.',
+                    icon: 'info'
+                });
             }
         });
 

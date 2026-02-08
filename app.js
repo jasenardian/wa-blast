@@ -648,15 +648,21 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                    await sleep(5000);
 
                    try {
+                       // requestPairingCode returns Promise<string>
                        const code = await client.requestPairingCode(num);
                        console.log(`Pairing Code for ${uniqueSessionId}: ${code}`);
+                       
                        // Force delay to ensure socket is ready/connected
                        await sleep(1000);
+                       
+                       // Emit the code to the specific user's socket room
                        io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: code });
                        io.to(userId.toString()).emit('message', `Kode Pairing: ${code}`);
                    } catch (innerErr) {
                        console.error("Pairing Code Inner Error:", innerErr.message);
-                       io.to(userId.toString()).emit('message', `Gagal request Pairing Code: ${innerErr.message}. Coba lagi.`);
+                       // If error is "Protocol error (Runtime.callFunctionOn): Target closed", browser crashed
+                       // If error is "Evaluation failed: ...", WWeb internal error
+                       io.to(userId.toString()).emit('message', `Gagal request Pairing Code: ${innerErr.message}. Pastikan nomor HP benar (628...).`);
                    }
                 }
             } catch (e) {
