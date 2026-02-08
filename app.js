@@ -4,6 +4,7 @@ const socketIO = require('socket.io');
 const qrcode = require('qrcode');
 const http = require('http');
 const fs = require('fs');
+const path = require('path'); // Added path module
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const db = require('./database');
@@ -200,6 +201,7 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
                 '--disable-accelerated-2d-canvas',
                 '--no-first-run',
                 '--no-zygote',
+                '--single-process', // PENTING: Mengurangi beban CPU/RAM di environment terbatas
                 '--disable-gpu',
                 '--disable-extensions',
                 '--disable-component-extensions-with-background-pages',
@@ -216,6 +218,7 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
                 '--disable-domain-reliability',
                 '--disable-sync'
             ],
+            ignoreHTTPSErrors: true
         },
         authStrategy: new LocalAuth({ clientId: clientId })
     });
@@ -647,50 +650,51 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                    if (num.startsWith('0')) num = '62' + num.slice(1);
                    
                    // Extra delay to ensure WA Web modules (Store, Registration) are fully loaded after QR appears
-                   console.log(`QR received. Waiting 20s for modules to stabilize (Safe Mode)...`);
-                   await sleep(20000); // Increase to 20s for very slow environments
+                   console.log(`QR received. Waiting 25s for modules to stabilize (Safe Mode + Reload)...`);
+                   await sleep(25000); 
 
                    try {
-                       // Inject polyfill for onCodeReceivedEvent if missing
-                       // This is the core fix: define the missing function manually in the browser context
+                       // Inject polyfill
                        await client.pupPage.evaluate(() => {
                            if (!window.onCodeReceivedEvent) {
-                               window.onCodeReceivedEvent = (code) => {
-                                   window.pairingCode = code;
-                               };
+                               window.onCodeReceivedEvent = (code) => { window.pairingCode = code; };
                            }
-                           // Force load modules if possible
-                           if (window.Store && window.Store.Registration) return;
                        });
 
                        // requestPairingCode returns Promise<string>
                        const code = await client.requestPairingCode(num);
-                       console.log(`Pairing Code for ${uniqueSessionId}: ${code}`);
-                       
-                       // Force delay to ensure socket is ready/connected
-                       await sleep(1000);
-                       
-                       // Emit the code to the specific user's socket room
-                       // Ensure code is a string
                        const finalCode = String(code || '');
-                       console.log(`Sending Pairing Code: ${finalCode}`);
+                       console.log(`Pairing Code for ${uniqueSessionId}: ${finalCode}`);
+                       
                        io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: finalCode });
                        io.to(userId.toString()).emit('message', `Kode Pairing: ${finalCode}`);
+
                    } catch (innerErr) {
-                       console.error("Pairing Code Inner Error:", innerErr.message);
-                       // If error is "Protocol error (Runtime.callFunctionOn): Target closed", browser crashed
-                       // If error is "Evaluation failed: ...", WWeb internal error
+                       console.error("Pairing Code Inner Error:", innerErr);
                        
-                       // AUTO-RETRY LOGIC FOR PAIRING CODE
-                       io.to(userId.toString()).emit('message', `Gagal request code. Retrying in 5s...`);
-                       await sleep(5000);
+                       // AUTO-RETRY LOGIC 2: Force reload page then try again
+                       io.to(userId.toString()).emit('message', `Retrying method 2 (Page Reload)...`);
+                       
                        try {
-                            const codeRetry = await client.requestPairingCode(num);
-                            const finalCodeRetry = String(codeRetry || '');
-                            io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: finalCodeRetry });
-                            io.to(userId.toString()).emit('message', `Kode Pairing: ${finalCodeRetry}`);
+                           await client.pupPage.reload({ waitUntil: 'networkidle0' });
+                           await sleep(10000); // Wait for QR again
+                           
+                           // Re-inject polyfill
+                           await client.pupPage.evaluate(() => {
+                               if (!window.onCodeReceivedEvent) {
+                                   window.onCodeReceivedEvent = (code) => { window.pairingCode = code; };
+                               }
+                           });
+
+                           const codeRetry = await client.requestPairingCode(num);
+                           const finalCodeRetry = String(codeRetry || '');
+                           console.log(`Retry Pairing Code: ${finalCodeRetry}`);
+                           
+                           io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: finalCodeRetry });
+                           io.to(userId.toString()).emit('message', `Kode Pairing: ${finalCodeRetry}`);
                        } catch (retryErr) {
-                            io.to(userId.toString()).emit('message', `Gagal total: ${retryErr.message}. Silakan gunakan QR Code.`);
+                            console.error("Retry Error:", retryErr);
+                            io.to(userId.toString()).emit('message', `Gagal total. Error: ${retryErr.message || JSON.stringify(retryErr)}. Silakan gunakan QR Code.`);
                        }
                    }
                 }
