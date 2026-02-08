@@ -971,7 +971,60 @@ app.post('/api/admin/device/restart', isAuthenticated, isSuperAdmin, (req, res) 
     }
 });
 
-// --- Backup API ---
+// --- Admin System Management ---
+
+app.post('/api/admin/system/cleanup-sessions', isAuthenticated, isSuperAdmin, async (req, res) => {
+    try {
+        // 1. Get all disconnected sessions from DB
+        const rows = await new Promise((resolve, reject) => {
+            db.all("SELECT id, session_id FROM whatsapp_sessions WHERE status = 'disconnected'", [], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows || []);
+            });
+        });
+
+        if (rows.length === 0) {
+            return res.json({ status: 'success', message: 'Tidak ada sesi disconnected yang perlu dibersihkan.' });
+        }
+
+        let count = 0;
+        for (const row of rows) {
+            const sessionId = row.id;
+            const sessionDirName = row.session_id;
+
+            // Destroy client if exists in memory (zombie)
+            const client = sessions.get(sessionId);
+            if (client) {
+                try { await client.destroy(); } catch (e) {}
+                sessions.delete(sessionId);
+            }
+
+            // Remove Auth Directory
+            const sessionPath = `./.wwebjs_auth/session-${sessionDirName}`;
+            try {
+                if (fs.existsSync(sessionPath)) {
+                    fs.rmSync(sessionPath, { recursive: true, force: true });
+                }
+            } catch (e) {
+                console.error(`Failed to delete session dir ${sessionPath}:`, e.message);
+            }
+
+            // Remove from DB
+            await new Promise((resolve) => {
+                db.run("DELETE FROM whatsapp_sessions WHERE id = ?", [sessionId], () => resolve());
+            });
+            
+            count++;
+        }
+
+        res.json({ status: 'success', message: `Berhasil membersihkan ${count} sesi sampah.` });
+
+    } catch (err) {
+        console.error("Cleanup Error:", err);
+        res.status(500).json({ status: 'error', message: err.message });
+    }
+});
+
 app.get('/api/admin/backup', isAuthenticated, isSuperAdmin, (req, res) => {
     const dbPath = path.resolve(__dirname, 'data/database.sqlite');
     // Check if file exists in data dir first, else try root (legacy)
