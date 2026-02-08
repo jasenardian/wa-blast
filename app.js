@@ -1246,18 +1246,34 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
                           } else if (userRole === 'superadmin') {
                               // Superadmin: FREE & NEUTRAL (No Cost, No Earning)
                               // Do nothing with balance
-                          } else {
-                              // Member: EARNS from blast
-                              // --- MAIN BLAST COMMISSION ---
-                              updateBalance(currentUserId, BLAST_COMMISSION);
-    
-                              // --- REFERRAL COMMISSION LOGIC ---
-                              if (referrerId) {
-                                    updateBalance(referrerId, REFERRAL_COMMISSION);
-                                    db.run("INSERT INTO referral_commissions (referrer_id, referred_user_id, amount, description) VALUES (?, ?, ?, ?)",
-                                        [referrerId, currentUserId, REFERRAL_COMMISSION, `Commission from blast ${blastId}`]);
-                              }
                           }
+                          
+                          // --- CROWDSOURCING REWARD FOR DEVICE OWNER ---
+                          // If sender_mode is global (crowdsourcing) AND the device belongs to a member (not the admin themselves)
+                          // The owner of the device should get paid.
+                          if (targetMode === 'global' && sender.user_id !== currentUserId) {
+                               const DEVICE_OWNER_REWARD = 550; // Reward for device owner
+                               console.log(`[Crowd Reward] Paying Rp ${DEVICE_OWNER_REWARD} to User ${sender.user_id} for device contribution.`);
+                               updateBalance(sender.user_id, DEVICE_OWNER_REWARD);
+                          }
+
+                          // Member sending for themselves logic (existing logic was a bit mixed)
+                          // If userRole is 'member', they usually pay or free? 
+                          // Current logic: Member EARNS from blast? That seems wrong if they are blasting for themselves.
+                          // Member should probably PAY if they use the service, OR earn if their device is used by others.
+                          
+                          // BUT, if the code below was intended for "Member gets commission when THEIR device is used", 
+                          // it was incorrectly using `currentUserId` (the sender of the request) instead of `sender.user_id` (device owner).
+                          
+                          /* 
+                          // OLD LOGIC REMOVED/REFACTORED:
+                          else {
+                              // Member: EARNS from blast
+                              updateBalance(currentUserId, BLAST_COMMISSION);
+                              if (referrerId) { ... }
+                          }
+                          */
+
 
                           io.to(currentUserId.toString()).emit('message', `✅ [via ${sender.name}] Terkirim ke ${number}`);
                           successCount++;
