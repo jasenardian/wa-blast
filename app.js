@@ -982,6 +982,38 @@ app.get('/api/me/blast-logs', isAuthenticated, (req, res) => {
     });
 });
 
+app.get('/api/me/earnings/stats', isAuthenticated, (req, res) => {
+    const userId = req.session.userId;
+    
+    // Get Total Blast Earning
+    const p1 = new Promise(resolve => {
+        db.get(`
+            SELECT COUNT(*) as count 
+            FROM blast_log_details d
+            JOIN whatsapp_sessions s ON d.sender_id = s.id
+            WHERE s.user_id = ? AND d.status = 'success'
+        `, [userId], (err, row) => {
+            const blastTotal = (row ? row.count : 0) * 550; // Rate 550
+            resolve(blastTotal);
+        });
+    });
+
+    // Get Total Referral Earning
+    const p2 = new Promise(resolve => {
+        db.get("SELECT SUM(amount) as total FROM referral_commissions WHERE referrer_id = ?", [userId], (err, row) => {
+            resolve(row ? row.total : 0);
+        });
+    });
+
+    Promise.all([p1, p2]).then(results => {
+        res.json({
+            blast: results[0] || 0,
+            referral: results[1] || 0,
+            total: (results[0] || 0) + (results[1] || 0)
+        });
+    });
+});
+
 app.get('/api/me/earnings', isAuthenticated, (req, res) => {
     const userId = req.session.userId;
     const type = req.query.type || 'blast'; // blast | referral
