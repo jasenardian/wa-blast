@@ -1292,6 +1292,39 @@
                          </form>
                      </div>
                  </div>
+                <div class="tab-pane fade" id="adminSystem">
+                    <div class="card p-3 mb-3">
+                        <h5 class="text-white mb-3">System Maintenance</h5>
+                        <div class="alert alert-warning border-0 bg-opacity-10 bg-warning text-warning small">
+                            <i class="bi bi-exclamation-triangle me-1"></i> Gunakan fitur ini dengan hati-hati.
+                        </div>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="card bg-dark border border-secondary p-3 h-100">
+                                    <h6 class="fw-bold text-info"><i class="bi bi-hdd-rack me-2"></i>Cleanup Sessions</h6>
+                                    <p class="small text-muted mb-3">
+                                        Hapus semua sesi yang statusnya "Disconnected" dari database dan disk. Berguna untuk membersihkan file sampah dan mengurangi penggunaan RAM.
+                                    </p>
+                                    <button class="btn btn-outline-info w-100" onclick="cleanupSessions()">
+                                        <i class="bi bi-broom me-2"></i>Bersihkan Sesi Sampah
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-dark border border-secondary p-3 h-100">
+                                    <h6 class="fw-bold text-success"><i class="bi bi-database-down me-2"></i>Backup Database</h6>
+                                    <p class="small text-muted mb-3">
+                                        Download file database SQLite saat ini sebagai backup.
+                                    </p>
+                                    <a href="/api/admin/backup" target="_blank" class="btn btn-outline-success w-100">
+                                        <i class="bi bi-download me-2"></i>Download Backup
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
