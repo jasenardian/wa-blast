@@ -95,7 +95,7 @@ const sessionMiddleware = session({
     saveUninitialized: true, // Ubah ke true untuk inisialisasi awal
     proxy: true,
     cookie: { 
-        maxAge: 30 * 24 * 60 * 60 * 1000, 
+        maxAge: 15 * 60 * 1000, // 15 menit
         secure: true, // Force secure (Railway pasti HTTPS)
         sameSite: 'none', // Ubah ke 'none' agar cookie dikirim cross-origin/iframe jika diperlukan
         httpOnly: true,
@@ -1535,7 +1535,7 @@ if (bot) {
                     if (number.startsWith('0')) number = '62' + number.slice(1);
                     if (!number.endsWith('@c.us')) number += '@c.us';
 
-                    const reminderMsg = `Halo Kak ${user.username}, 👋\n\nKami melihat kakak sudah mendaftar di *WA Blast Pro* tapi belum menautkan WhatsApp.\n\nAyo segera tautkan WhatsApp kakak sekarang untuk mulai mendapatkan *Komisi* dan menggunakan fitur Blast!\n\nJika ada kendala, silakan hubungi admin ya. Terima kasih! 🙏`;
+                    const reminderMsg = `Halo Kak ${user.username}, 👋\n\nKami melihat kakak sudah mendaftar di *WA Blast Pro* tapi belum menautkan WhatsApp.\n\nAyo segera tautkan WhatsApp kakak sekarang untuk mulai mendapatkan *Komisi* dan menggunakan fitur Blast!\n\nJika ada kendala, silakan hubungi admin WA 085155449369 TELEGRAM @jstogel. Terima kasih! 🙏`;
 
                     const isRegistered = await senderClient.isRegisteredUser(number);
                     if (isRegistered) {

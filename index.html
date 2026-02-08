@@ -2317,6 +2317,35 @@
             });
         }
 
+        function reScanSession(id, userId, sessionId) {
+            Swal.fire({
+                title: 'Scan Ulang Sesi?',
+                text: 'Sesi ini akan di-reset dan Anda perlu scan QR ulang. Lanjutkan?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Scan Ulang'
+            }).then(r => {
+                if (r.isConfirmed) {
+                    Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
+                    fetch('/api/devices/' + id + '/restart', { method: 'POST' }) // Reuse restart logic which triggers re-init
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.status === 'success') {
+                                Swal.close();
+                                // Open Modal for Scan
+                                showAddDeviceModal();
+                                // We need to set scanning ID to this session to catch QR
+                                currentScanningSessionId = id; 
+                                // Ideally, the backend should emit QR immediately after restart if not connected
+                                document.getElementById('newDeviceStatus').innerText = "Menunggu QR Code...";
+                            } else {
+                                Swal.fire('Gagal', d.message, 'error');
+                            }
+                        });
+                }
+            });
+        }
+
         // --- Socket Events ---
         socket.on('qr', data => {
             if(currentScanningSessionId == data.sessionId) {
@@ -2391,6 +2420,24 @@
             loadDevices();
             loadUserStats();
             updateWhatsappUI();
+        });
+
+        // Add handler for 'balance_update' from server
+        socket.on('balance_update', (data) => {
+            // Update balance in real-time
+            if (data && data.balance !== undefined) {
+                console.log("Balance update received:", data.balance);
+                const fmt = formatRupiah(data.balance);
+                if(document.getElementById('dashBalance')) document.getElementById('dashBalance').innerText = fmt;
+                if(document.getElementById('wdBalanceDisplay')) document.getElementById('wdBalanceDisplay').innerText = fmt;
+                
+                // Also update earning if provided
+                // If the server sends 'earnings' or we can fetch it
+                // For now, let's fetch stats again to be sure
+                fetch('/api/me/earnings/stats').then(r=>r.json()).then(stats => {
+                    if(document.getElementById('dashStatEarn')) document.getElementById('dashStatEarn').innerText = formatRupiah(stats.total || 0);
+                });
+            }
         });
 
         // --- Helpers ---
