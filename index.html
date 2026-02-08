@@ -1735,6 +1735,29 @@
                     if(document.getElementById('greetUsername')) document.getElementById('greetUsername').innerText = user.username;
                     if(document.getElementById('headerAvatar')) document.getElementById('headerAvatar').innerText = user.username.charAt(0).toUpperCase();
                     if(document.getElementById('dashBalance')) document.getElementById('dashBalance').innerText = formatRupiah(user.balance);
+                    
+                    // FORCE UPDATE WD BALANCE DISPLAY IN DOMPET TAB
+                    if(document.getElementById('wdBalanceDisplay')) {
+                        document.getElementById('wdBalanceDisplay').innerText = formatRupiah(user.balance);
+                    }
+                    if(document.getElementById('wdBalance')) { // Input hidden or similar if exists
+                         // document.getElementById('wdBalance').value = user.balance; 
+                    }
+                    
+                    // Update Progress Bar
+                    const minWd = 10000;
+                    const progress = Math.min((user.balance / minWd) * 100, 100);
+                    if(document.getElementById('wdProgress')) document.getElementById('wdProgress').style.width = progress + '%';
+                    if(document.getElementById('wdProgressText')) document.getElementById('wdProgressText').innerText = Math.floor(progress) + '%';
+                    if(document.getElementById('wdWarning')) {
+                        if(user.balance < minWd) {
+                            document.getElementById('wdWarning').style.display = 'block';
+                            document.getElementById('wdWarning').innerText = 'Kurang ' + formatRupiah(minWd - user.balance) + ' lagi';
+                        } else {
+                            document.getElementById('wdWarning').style.display = 'none';
+                        }
+                    }
+
                     // Remove duplicate line
                     if(document.getElementById('memberSince')) document.getElementById('memberSince').innerText = "06 Feb 2026"; 
                     
@@ -1806,10 +1829,16 @@
 
         function updateWhatsappUI() {
             fetch('/api/me/stats').then(r=>r.json()).then(stats => {
-                document.getElementById('waStatActive').innerText = stats.devices_online || 0;
-                document.getElementById('waStatOffline').innerText = stats.devices_offline || 0;
-                document.getElementById('waStatTotal').innerText = (stats.devices_online + stats.devices_offline) || 0;
-                document.getElementById('waStatMessages').innerText = stats.messages_sent || 0;
+                if(document.getElementById('dashStatActive')) document.getElementById('dashStatActive').innerText = stats.devices_online || 0;
+                if(document.getElementById('dashStatOffline')) document.getElementById('dashStatOffline').innerText = stats.devices_offline || 0;
+                // BLAST card should show messages sent (stats.messages_sent)
+                if(document.getElementById('dashStatBlast')) document.getElementById('dashStatBlast').innerText = stats.messages_sent || 0;
+                
+                // Fallback for other sections if IDs exist
+                if(document.getElementById('waStatActive')) document.getElementById('waStatActive').innerText = stats.devices_online || 0;
+                if(document.getElementById('waStatOffline')) document.getElementById('waStatOffline').innerText = stats.devices_offline || 0;
+                if(document.getElementById('waStatTotal')) document.getElementById('waStatTotal').innerText = stats.messages_sent || 0;
+                if(document.getElementById('waStatMessages')) document.getElementById('waStatMessages').innerText = stats.messages_sent || 0;
             });
             loadDevices(true); 
         }
