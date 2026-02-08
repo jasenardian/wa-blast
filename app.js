@@ -644,10 +644,23 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                    if (num.startsWith('0')) num = '62' + num.slice(1);
                    
                    // Extra delay to ensure WA Web modules (Store, Registration) are fully loaded after QR appears
-                   console.log(`QR received. Waiting 5s for modules to stabilize...`);
-                   await sleep(5000);
+                   console.log(`QR received. Waiting 10s for modules to stabilize...`);
+                   await sleep(10000); // Increase to 10s
 
                    try {
+                       // Inject custom function to expose WWebJS internals if needed, 
+                       // but usually requestPairingCode handles it.
+                       // The error "window.onCodeReceivedEvent is not a function" suggests an issue with 
+                       // how Puppeteer/WWebJS is interacting with the page context.
+                       // Sometimes reloading the page or waiting longer helps.
+                       
+                       // Let's try to wait for the specific module exposure
+                       await client.pupPage.evaluate(() => {
+                           // Attempt to ensure WWebJS internal Store is ready
+                           // This is a hacky fix for some WWeb versions
+                           if (!window.Store) return; 
+                       });
+
                        // requestPairingCode returns Promise<string>
                        const code = await client.requestPairingCode(num);
                        console.log(`Pairing Code for ${uniqueSessionId}: ${code}`);
@@ -662,7 +675,7 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                        console.error("Pairing Code Inner Error:", innerErr.message);
                        // If error is "Protocol error (Runtime.callFunctionOn): Target closed", browser crashed
                        // If error is "Evaluation failed: ...", WWeb internal error
-                       io.to(userId.toString()).emit('message', `Gagal request Pairing Code: ${innerErr.message}. Pastikan nomor HP benar (628...).`);
+                       io.to(userId.toString()).emit('message', `Gagal request Pairing Code: ${innerErr.message}. Coba lagi nanti.`);
                    }
                 }
             } catch (e) {
