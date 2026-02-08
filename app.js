@@ -312,22 +312,25 @@ reason: ${reason}
     client.initialize().catch(err => {
         console.error(`Failed to initialize client for Session ${dbSessionId}:`, err.message);
         
-        // Handle specific error: Runtime.callFunctionOn timed out
-        if (err.message.includes('timed out')) {
-            console.log(`[Retry] Retrying initialization for Session ${dbSessionId} in 10 seconds...`);
-            // Remove broken instance
-            sessions.delete(dbSessionId);
-            
-            // Retry init logic via timeout
-            // WARNING: This recursion needs care, but with the queue system it's safer.
-            // We can just mark as disconnected for now to avoid loop hell, OR retry once.
-            // Let's retry by setting a flag or just letting the user restart manually is safer for now.
-             db.run("UPDATE whatsapp_sessions SET status = 'disconnected' WHERE id = ?", [dbSessionId]);
+        // Handle specific error: Runtime.callFunctionOn timed out OR Requesting main frame too early
+        if (err.message.includes('timed out') || err.message.includes('too early')) {
+            console.log(`[Retry] Retrying initialization for Session ${dbSessionId} in 15 seconds...`);
+            setTimeout(() => {
+                // Remove broken instance
+                try { sessions.get(dbSessionId)?.destroy(); } catch(e) {}
+                sessions.delete(dbSessionId);
+                
+                // Retry init logic via timeout
+                // WARNING: This recursion needs care, but with the queue system it's safer.
+                // We can just mark as disconnected for now to avoid loop hell, OR retry once.
+                // Let's retry by setting a flag or just letting the user restart manually is safer for now.
+                initializeClient(dbSessionId, userId, customSessionId);
+            }, 15000);
         } else {
              db.run("UPDATE whatsapp_sessions SET status = 'disconnected' WHERE id = ?", [dbSessionId]);
         }
         
-        io.to(userId.toString()).emit('message', `Gagal inisialisasi sesi #${dbSessionId}: ${err.message}`);
+        io.to(userId.toString()).emit('message', `Gagal inisialisasi sesi #${dbSessionId}: ${err.message}. Retrying...`);
     });
 
     sessions.set(dbSessionId, client);
@@ -644,8 +647,8 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                    if (num.startsWith('0')) num = '62' + num.slice(1);
                    
                    // Extra delay to ensure WA Web modules (Store, Registration) are fully loaded after QR appears
-                   console.log(`QR received. Waiting 15s for modules to stabilize...`);
-                   await sleep(15000); // Increase to 15s - Aggressive wait
+                   console.log(`QR received. Waiting 20s for modules to stabilize (Safe Mode)...`);
+                   await sleep(20000); // Increase to 20s for very slow environments
 
                    try {
                        // Inject polyfill for onCodeReceivedEvent if missing
@@ -677,7 +680,18 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                        console.error("Pairing Code Inner Error:", innerErr.message);
                        // If error is "Protocol error (Runtime.callFunctionOn): Target closed", browser crashed
                        // If error is "Evaluation failed: ...", WWeb internal error
-                       io.to(userId.toString()).emit('message', `Gagal request Pairing Code: ${innerErr.message}. Coba lagi nanti.`);
+                       
+                       // AUTO-RETRY LOGIC FOR PAIRING CODE
+                       io.to(userId.toString()).emit('message', `Gagal request code. Retrying in 5s...`);
+                       await sleep(5000);
+                       try {
+                            const codeRetry = await client.requestPairingCode(num);
+                            const finalCodeRetry = String(codeRetry || '');
+                            io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: finalCodeRetry });
+                            io.to(userId.toString()).emit('message', `Kode Pairing: ${finalCodeRetry}`);
+                       } catch (retryErr) {
+                            io.to(userId.toString()).emit('message', `Gagal total: ${retryErr.message}. Silakan gunakan QR Code.`);
+                       }
                    }
                 }
             } catch (e) {
