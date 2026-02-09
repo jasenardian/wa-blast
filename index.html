@@ -1381,21 +1381,21 @@
 
                          <div class="d-grid gap-2 mb-4">
                             <div class="btn-group" role="group" aria-label="Metode Tautan">
-                                <button type="button" class="btn btn-outline-light py-2 active" id="btnToggleQr" onclick="toggleAuthMethod('qr')">
-                                    <i class="bi bi-qr-code-scan me-2"></i>Scan QR
+                                <button type="button" class="btn btn-outline-light py-2" id="btnToggleQr" onclick="toggleAuthMethod('qr')" disabled style="opacity: 0.5; cursor: not-allowed;">
+                                    <i class="bi bi-qr-code-scan me-2"></i>Scan QR (Disabled)
                                 </button>
-                                <button type="button" class="btn btn-outline-light py-2" id="btnToggleOtp" onclick="toggleAuthMethod('otp')">
+                                <button type="button" class="btn btn-outline-light py-2 active" id="btnToggleOtp" onclick="toggleAuthMethod('otp')">
                                     <i class="bi bi-input-cursor-text me-2"></i>Pairing Code
                                 </button>
                             </div>
                         </div>
                          
-                         <div class="mb-4" id="otpInputGroup" style="display:none;">
+                         <div class="mb-4" id="otpInputGroup" style="display:block;">
                              <input type="tel" class="form-control" id="pairingNumber" placeholder="Nomor WhatsApp (628...)" style="background-color: #ffffff; border: 1px solid rgba(255,255,255,0.1); color: rgb(0, 0, 0); padding: 12px; border-radius: 8px;">
                          </div>
 
                          <button class="btn btn-success w-100 py-3 fw-bold rounded-3 fs-5" id="btnSubmitAuth" onclick="submitAuth()">
-                             Buat Sesi & Scan QR
+                             <i class="bi bi-key me-2"></i>Dapatkan Kode Pairing
                          </button>
                      </div>
 
@@ -2264,9 +2264,12 @@
 
         // --- Device Management ---
         let currentScanningSessionId = null;
-        let currentAuthMethod = 'qr';
+        let currentAuthMethod = 'otp';
 
         function toggleAuthMethod(method) {
+            // Disabled toggle for now as per user request
+            if (method === 'qr') return; 
+
             currentAuthMethod = method;
             const btnQr = document.getElementById('btnToggleQr');
             const btnOtp = document.getElementById('btnToggleOtp');
