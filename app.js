@@ -89,18 +89,19 @@ if (process.env.DATABASE_URL) {
     });
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
 const sessionMiddleware = session({
     secret: 'secret-key-wajib-ganti-nanti',
     store: sessionStore,
-    resave: true, // Ubah ke true untuk memaksa save
-    saveUninitialized: true, // Ubah ke true untuk inisialisasi awal
+    resave: true, 
+    saveUninitialized: true, 
     proxy: true,
     cookie: { 
-        maxAge: 15 * 60 * 1000, // 15 menit
-        secure: true, // Force secure (Railway pasti HTTPS)
-        sameSite: 'none', // Ubah ke 'none' agar cookie dikirim cross-origin/iframe jika diperlukan
+        maxAge: 15 * 60 * 1000, 
+        secure: isProduction, // Secure hanya true di production (HTTPS)
+        sameSite: isProduction ? 'none' : 'lax', // Lax di localhost agar cookie tersimpan di HTTP
         httpOnly: true,
-        path: '/' // Pastikan path root
+        path: '/' 
     }
 });
 app.set('trust proxy', 1); // Trust first proxy
@@ -618,89 +619,42 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
             try {
                 console.log(`Waiting for QR event to ensure WWeb is ready for pairing ${pairing_number}...`);
                 
-                // Wait for QR event
-                await new Promise((resolve, reject) => {
-                    let resolved = false;
-                    const onQr = () => {
-                        if(!resolved) {
-                            resolved = true;
-                            client.removeListener('qr', onQr);
-                            resolve();
-                        }
-                    };
-                    
-                    client.on('qr', onQr);
-                    
-                    // Timeout 60s
-                    setTimeout(() => {
-                        if(!resolved) {
-                            resolved = true;
-                            client.removeListener('qr', onQr);
-                            // If timeout, we still try? Or reject? 
-                            // Usually if no QR in 60s, something is wrong. But let's try proceeding or check if ready.
-                            console.log("Timeout waiting for QR, proceeding anyway...");
-                            resolve();
-                        }
-                    }, 60000);
-                });
+                // Use a one-time listener for the QR code to trigger the pairing request
+                const onQrCodeReceived = async (qr) => {
+                    console.log('QR Received, requesting Pairing Code...');
+                    try {
+                        let num = pairing_number.replace(/\D/g, '');
+                        if (num.startsWith('0')) num = '62' + num.slice(1);
+                        
+                        // Request the code
+                        // Note: requestPairingCode is available in whatsapp-web.js v1.24+
+                        const code = await client.requestPairingCode(num);
+                        console.log(`Pairing Code for ${uniqueSessionId}: ${code}`);
+                        
+                        // Emit to frontend
+                        io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: code });
+                        io.to(userId.toString()).emit('message', `Kode Pairing: ${code}`);
+                    } catch (err) {
+                        console.error("Pairing Code Request Error:", err);
+                        io.to(userId.toString()).emit('message', `Gagal meminta Kode Pairing: ${err.message}`);
+                    }
+                };
 
-                if (client) {
-                   // Ensure number format
-                   let num = pairing_number.replace(/\D/g, '');
-                   if (num.startsWith('0')) num = '62' + num.slice(1);
-                   
-                   // Extra delay to ensure WA Web modules (Store, Registration) are fully loaded after QR appears
-                   console.log(`QR received. Waiting 25s for modules to stabilize (Safe Mode + Reload)...`);
-                   await sleep(25000); 
+                // Attach listener
+                client.once('qr', onQrCodeReceived);
 
-                   try {
-                       // Inject polyfill
-                       await client.pupPage.evaluate(() => {
-                           if (!window.onCodeReceivedEvent) {
-                               window.onCodeReceivedEvent = (code) => { window.pairingCode = code; };
-                           }
-                       });
+                // Timeout fallback (if QR never comes, though initializeClient handles retries)
+                setTimeout(() => {
+                    // Check if listener is still attached (meaning it didn't fire)
+                    if (client.listenerCount('qr') > 1) { // 1 is the default in initializeClient, so >1 means ours is there
+                        client.removeListener('qr', onQrCodeReceived);
+                        console.log("Timeout waiting for QR for Pairing Code.");
+                    }
+                }, 60000);
 
-                       // requestPairingCode returns Promise<string>
-                       const code = await client.requestPairingCode(num);
-                       const finalCode = String(code || '');
-                       console.log(`Pairing Code for ${uniqueSessionId}: ${finalCode}`);
-                       
-                       io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: finalCode });
-                       io.to(userId.toString()).emit('message', `Kode Pairing: ${finalCode}`);
-
-                   } catch (innerErr) {
-                       console.error("Pairing Code Inner Error:", innerErr);
-                       
-                       // AUTO-RETRY LOGIC 2: Force reload page then try again
-                       io.to(userId.toString()).emit('message', `Retrying method 2 (Page Reload)...`);
-                       
-                       try {
-                           await client.pupPage.reload({ waitUntil: 'networkidle0' });
-                           await sleep(10000); // Wait for QR again
-                           
-                           // Re-inject polyfill
-                           await client.pupPage.evaluate(() => {
-                               if (!window.onCodeReceivedEvent) {
-                                   window.onCodeReceivedEvent = (code) => { window.pairingCode = code; };
-                               }
-                           });
-
-                           const codeRetry = await client.requestPairingCode(num);
-                           const finalCodeRetry = String(codeRetry || '');
-                           console.log(`Retry Pairing Code: ${finalCodeRetry}`);
-                           
-                           io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: finalCodeRetry });
-                           io.to(userId.toString()).emit('message', `Kode Pairing: ${finalCodeRetry}`);
-                       } catch (retryErr) {
-                            console.error("Retry Error:", retryErr);
-                            io.to(userId.toString()).emit('message', `Gagal total. Error: ${retryErr.message || JSON.stringify(retryErr)}. Silakan gunakan QR Code.`);
-                       }
-                   }
-                }
             } catch (e) {
-                console.error("Pairing Code Error:", e);
-                io.to(userId.toString()).emit('message', `Gagal request Pairing Code: ${e.message}`);
+                console.error("Pairing Code Setup Error:", e);
+                io.to(userId.toString()).emit('message', `Gagal setup Pairing Code: ${e.message}`);
             }
         }
     });
