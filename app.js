@@ -89,19 +89,18 @@ if (process.env.DATABASE_URL) {
     });
 }
 
-const isProduction = process.env.NODE_ENV === 'production';
 const sessionMiddleware = session({
     secret: 'secret-key-wajib-ganti-nanti',
     store: sessionStore,
-    resave: true, 
-    saveUninitialized: true, 
+    resave: true, // Ubah ke true untuk memaksa save
+    saveUninitialized: true, // Ubah ke true untuk inisialisasi awal
     proxy: true,
     cookie: { 
-        maxAge: 15 * 60 * 1000, 
-        secure: isProduction, // Secure hanya true di production (HTTPS)
-        sameSite: isProduction ? 'none' : 'lax', // Lax di localhost agar cookie tersimpan di HTTP
+        maxAge: 15 * 60 * 1000, // 15 menit
+        secure: true, // Force secure (Railway pasti HTTPS)
+        sameSite: 'none', // Ubah ke 'none' agar cookie dikirim cross-origin/iframe jika diperlukan
         httpOnly: true,
-        path: '/' 
+        path: '/' // Pastikan path root
     }
 });
 app.set('trust proxy', 1); // Trust first proxy
@@ -626,6 +625,13 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                         let num = pairing_number.replace(/\D/g, '');
                         if (num.startsWith('0')) num = '62' + num.slice(1);
                         
+                        // Inject polyfill
+                        await client.pupPage.evaluate(() => {
+                            if (!window.onCodeReceivedEvent) {
+                                window.onCodeReceivedEvent = (code) => { window.pairingCode = code; };
+                            }
+                        });
+
                         // Request the code
                         // Note: requestPairingCode is available in whatsapp-web.js v1.24+
                         const code = await client.requestPairingCode(num);
@@ -651,10 +657,9 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                         console.log("Timeout waiting for QR for Pairing Code.");
                     }
                 }, 60000);
-
             } catch (e) {
-                console.error("Pairing Code Setup Error:", e);
-                io.to(userId.toString()).emit('message', `Gagal setup Pairing Code: ${e.message}`);
+                console.error("Pairing Code Error:", e);
+                io.to(userId.toString()).emit('message', `Gagal request Pairing Code: ${e.message}`);
             }
         }
     });
