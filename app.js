@@ -634,7 +634,21 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
 
                         // Request the code
                         // Note: requestPairingCode is available in whatsapp-web.js v1.24+
-                        const code = await client.requestPairingCode(num);
+                        let code = await client.requestPairingCode(num);
+                        
+                        // Fallback if code is undefined (some versions need to read it from window)
+                        if (!code) {
+                             console.log("Code is undefined, trying to read from window.pairingCode...");
+                             code = await client.pupPage.evaluate(() => window.pairingCode);
+                        }
+                        
+                        // If still undefined, wait a bit and try again
+                        if (!code) {
+                            console.log("Code still undefined, waiting 2s...");
+                            await new Promise(r => setTimeout(r, 2000));
+                            code = await client.pupPage.evaluate(() => window.pairingCode);
+                        }
+
                         console.log(`Pairing Code for ${uniqueSessionId}: ${code}`);
                         
                         // Emit to frontend
