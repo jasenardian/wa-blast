@@ -632,36 +632,47 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                             }
                         });
 
-                        // Wait a bit to ensure UI is ready
-                        await new Promise(r => setTimeout(r, 2000));
+                        // Wait a bit to ensure UI is ready (increased to 3s)
+                        await new Promise(r => setTimeout(r, 3000));
 
-                        // Request the code
-                        // Note: requestPairingCode is available in whatsapp-web.js v1.24+
-                        let code;
-                        try {
-                            code = await client.requestPairingCode(num);
-                        } catch (reqErr) {
-                            console.error("requestPairingCode failed, trying fallback:", reqErr.message);
-                        }
-                        
-                        // Fallback if code is undefined (some versions need to read it from window)
-                        if (!code) {
-                             console.log("Code is undefined, trying to read from window.pairingCode...");
-                             code = await client.pupPage.evaluate(() => window.pairingCode);
-                        }
-                        
-                        // If still undefined, wait a bit and try again
-                        if (!code) {
-                            console.log("Code still undefined, waiting 3s...");
-                            await new Promise(r => setTimeout(r, 3000));
-                            code = await client.pupPage.evaluate(() => window.pairingCode);
+                        // Retry Loop
+                        let code = null;
+                        let attempts = 0;
+                        const maxAttempts = 4;
+
+                        while (!code && attempts < maxAttempts) {
+                            attempts++;
+                            console.log(`[Pairing] Attempt ${attempts}/${maxAttempts} for ${pairing_number}...`);
+                            
+                            try {
+                                code = await client.requestPairingCode(num);
+                            } catch (reqErr) {
+                                console.error(`[Pairing] Attempt ${attempts} native failed:`, reqErr.message);
+                            }
+                            
+                            // Fallback if code is undefined
+                            if (!code) {
+                                 console.log(`[Pairing] Code undefined, trying window.pairingCode fallback...`);
+                                 try {
+                                    code = await client.pupPage.evaluate(() => window.pairingCode);
+                                 } catch(e) {}
+                            }
+                            
+                            // If still undefined, wait before retry
+                            if (!code && attempts < maxAttempts) {
+                                const waitTime = 2000 + (attempts * 1000); // 3s, 4s, 5s...
+                                console.log(`[Pairing] Code not found, waiting ${waitTime}ms...`);
+                                await new Promise(r => setTimeout(r, waitTime));
+                            }
                         }
 
-                        console.log(`Pairing Code for ${uniqueSessionId}: ${code}`);
-                        
-                        // Emit to frontend
-                        io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: code });
-                        io.to(userId.toString()).emit('message', `Kode Pairing: ${code}`);
+                        if (code) {
+                            console.log(`Pairing Code for ${uniqueSessionId}: ${code}`);
+                            io.to(userId.toString()).emit('pairing_code', { sessionId: newDbId, code: code });
+                            io.to(userId.toString()).emit('message', `Kode Pairing: ${code}`);
+                        } else {
+                            throw new Error("Gagal mendapatkan kode pairing setelah beberapa percobaan. Pastikan nomor HP benar dan coba lagi.");
+                        }
                     } catch (err) {
                         console.error("Pairing Code Request Error:", err);
                         io.to(userId.toString()).emit('message', `Gagal meminta Kode Pairing: ${err.message}`);
