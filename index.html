@@ -2478,8 +2478,12 @@
                 // Format code with spaces if possible (usually comes as 8 chars like ABCDEFGH)
                 // Let's just show it directly
                 let formattedCode = data.code;
-                if (data.code && typeof data.code === 'string') {
-                    formattedCode = data.code.split('').join(' ');
+                
+                // If code is null/undefined/empty, show "Loading..." instead of undefined
+                if (!formattedCode) {
+                    formattedCode = "Loading...";
+                } else if (typeof data.code === 'string') {
+                     formattedCode = data.code.split('').join(' ');
                 }
                 
                 document.getElementById('otpCodeDisplay').innerText = formattedCode;
