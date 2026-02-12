@@ -1070,24 +1070,34 @@ app.post('/api/admin/broadcast-alert', isAuthenticated, isSuperAdmin, async (req
 
 app.post('/api/admin/system/cleanup-sessions', isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
-        // 1. Get all disconnected sessions from DB
-        const rows = await new Promise((resolve, reject) => {
-            db.all("SELECT id, session_id FROM whatsapp_sessions WHERE status = 'disconnected'", [], (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows || []);
-            });
+        // 1. Get ALL sessions from DB to check for Zombies + Disconnected
+        const allSessions = await new Promise((resolve) => {
+            db.all("SELECT id, session_id, status FROM whatsapp_sessions", [], (err, rows) => resolve(rows || []));
         });
 
-        if (rows.length === 0) {
-            return res.json({ status: 'success', message: 'Tidak ada sesi disconnected yang perlu dibersihkan.' });
+        let sessionsToDelete = [];
+
+        for (const row of allSessions) {
+            const isInMemory = sessions.has(row.id);
+            
+            // Criteria for deletion:
+            // 1. Status is 'disconnected'
+            // 2. Status is 'connected' BUT not found in memory (Zombie Session)
+            if (row.status === 'disconnected' || (row.status === 'connected' && !isInMemory)) {
+                sessionsToDelete.push(row);
+            }
+        }
+
+        if (sessionsToDelete.length === 0) {
+            return res.json({ status: 'success', message: 'Semua sesi valid. Tidak ada sesi sampah/offline yang perlu dibersihkan.' });
         }
 
         let count = 0;
-        for (const row of rows) {
+        for (const row of sessionsToDelete) {
             const sessionId = row.id;
             const sessionDirName = row.session_id;
 
-            // Destroy client if exists in memory (zombie)
+            // Double check: Destroy client if exists in memory (rare edge case for 'disconnected' status but still in mem)
             const client = sessions.get(sessionId);
             if (client) {
                 try { await client.destroy(); } catch (e) {}
@@ -1112,7 +1122,7 @@ app.post('/api/admin/system/cleanup-sessions', isAuthenticated, isSuperAdmin, as
             count++;
         }
 
-        res.json({ status: 'success', message: `Berhasil membersihkan ${count} sesi sampah.` });
+        res.json({ status: 'success', message: `Berhasil membersihkan ${count} sesi sampah (Offline/Zombie).` });
 
     } catch (err) {
         console.error("Cleanup Error:", err);
