@@ -753,6 +753,36 @@ app.delete('/api/devices/:id', isAuthenticated, (req, res) => {
     });
 });
 
+// Delete Device (Admin)
+app.delete('/api/admin/devices/:id', isAuthenticated, isSuperAdmin, (req, res) => {
+    const sessionId = parseInt(req.params.id);
+
+    db.get("SELECT * FROM whatsapp_sessions WHERE id = ?", [sessionId], async (err, row) => {
+        if (!row) return res.status(404).json({ error: 'Device not found' });
+
+        const client = sessions.get(sessionId);
+        if (client) {
+            try {
+                await client.destroy();
+            } catch (e) { console.error(e); }
+            sessions.delete(sessionId);
+        }
+
+        // Cleanup files
+        const sessionPath = `./.wwebjs_auth/session-${row.session_id}`;
+        try {
+            if (fs.existsSync(sessionPath)) {
+                fs.rmSync(sessionPath, { recursive: true, force: true });
+            }
+        } catch (e) {}
+
+        db.run("DELETE FROM whatsapp_sessions WHERE id = ?", [sessionId], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ status: 'success', message: 'Device deleted by Admin' });
+        });
+    });
+});
+
 // --- Admin APIs ---
 
 // --- Admin User Management ---
@@ -967,7 +997,76 @@ app.post('/api/admin/device/restart', isAuthenticated, isSuperAdmin, (req, res) 
     }
 });
 
-// --- Admin System Management ---
+// --- Admin APIs ---
+// Broadcast Notification to ALL Registered DEVICES (From Device Info History)
+app.post('/api/admin/broadcast-alert', isAuthenticated, isSuperAdmin, async (req, res) => {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ status: 'error', message: 'Pesan tidak boleh kosong' });
+
+    // 1. Get ALL device numbers ever registered (from whatsapp_sessions table, parsing device_info)
+    const targets = await new Promise(resolve => {
+        db.all(`
+            SELECT device_info FROM whatsapp_sessions WHERE device_info IS NOT NULL
+        `, [], (err, rows) => {
+            if (err) return resolve([]);
+            
+            const numbers = new Set();
+            rows.forEach(row => {
+                try {
+                    const info = JSON.parse(row.device_info);
+                    if (info && info.wid && info.wid.user) {
+                        numbers.add(info.wid.user);
+                    }
+                } catch (e) {
+                    // Ignore invalid JSON
+                }
+            });
+            resolve(Array.from(numbers));
+        });
+    });
+
+    if (targets.length === 0) {
+        return res.json({ status: 'error', message: 'Tidak ada riwayat perangkat terdaftar yang ditemukan.' });
+    }
+
+    // 2. Use Admin's own device to send the messages
+    const adminSessions = await new Promise(resolve => {
+        db.all("SELECT id FROM whatsapp_sessions WHERE user_id = ? AND status = 'connected'", [req.session.userId], (err, rows) => resolve(rows || []));
+    });
+
+    if (adminSessions.length === 0) {
+        return res.json({ status: 'error', message: 'Admin harus memiliki setidaknya satu perangkat terhubung untuk mengirim notifikasi.' });
+    }
+
+    const adminSender = sessions.get(adminSessions[0].id); // Use first available admin device
+    if (!adminSender) return res.status(500).json({ status: 'error', message: 'Gagal menginisialisasi perangkat pengirim Admin.' });
+
+    let successCount = 0;
+    
+    // 3. Send Broadcast
+    for (const number of targets) {
+        try {
+            let formattedNumber = number; // Usually already pure number from wid.user
+            if (!formattedNumber.endsWith('@c.us')) formattedNumber += '@c.us';
+
+            const fullMessage = `*📢 PENGUMUMAN ADMIN*\n\n${message}\n\n_Pesan otomatis dari Sistem WA Blast Pro_`;
+            
+            // Skip sending to self if admin targets their own device
+            if (formattedNumber === adminSender.info.wid._serialized) continue;
+
+            await adminSender.sendMessage(formattedNumber, fullMessage);
+            successCount++;
+            await sleep(2000); // Delay 2s
+        } catch (e) {
+            console.error(`Failed to notify device number ${number}:`, e.message);
+        }
+    }
+
+    res.json({ 
+        status: 'success', 
+        message: `Notifikasi berhasil dikirim ke ${successCount} nomor perangkat (dari ${targets.length} total riwayat perangkat).` 
+    });
+});
 
 app.post('/api/admin/system/cleanup-sessions', isAuthenticated, isSuperAdmin, async (req, res) => {
     try {
@@ -1242,8 +1341,9 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
     const { numbers, message, mode } = req.body;
     const currentUserId = req.session.userId;
     
-    // --- POOL SELECTION LOGIC ---
-    let poolClients = [];
+    // --- POOL SELECTION CHECK ---
+    // Just check if ANY device exists, actual selection happens in Worker
+    let hasAvailableDevice = false;
     
     // Determine Target Mode
     let targetMode = 'self';
@@ -1252,37 +1352,22 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
     }
 
     if (targetMode === 'global') {
-        // ADMIN GLOBAL MODE: Use All Connected Sessions (Crowdsourcing)
-        const allSessions = await new Promise((resolve) => {
-            db.all("SELECT id, session_name, user_id FROM whatsapp_sessions WHERE status = 'connected'", [], (err, rows) => {
-                resolve(rows || []);
-            });
-        });
-
-        for (const sess of allSessions) {
-            const c = sessions.get(sess.id);
-            if (c && c.info && c.info.wid) {
-                poolClients.push({ id: sess.id, client: c, name: sess.session_name, uid: sess.user_id, user_id: sess.user_id });
-            }
-        }
+        // ADMIN GLOBAL MODE: Check global pool
+        const count = await new Promise(r => db.get("SELECT COUNT(*) as c FROM whatsapp_sessions WHERE status = 'connected'", [], (e,row)=>r(row?.c||0)));
+        hasAvailableDevice = count > 0;
     } else {
-        // SELF MODE: Use Own Connected Sessions
-        const mySessions = await new Promise((resolve) => {
-            db.all("SELECT id, session_name, user_id FROM whatsapp_sessions WHERE user_id = ? AND status = 'connected'", [currentUserId], (err, rows) => {
-                resolve(rows || []);
-            });
-        });
-
-        for (const sess of mySessions) {
-            const c = sessions.get(sess.id);
-            if (c && c.info && c.info.wid) {
-                poolClients.push({ id: sess.id, client: c, name: sess.session_name, uid: sess.user_id, user_id: sess.user_id });
-            }
-        }
+        // SELF MODE: Check own pool
+        const count = await new Promise(r => db.get("SELECT COUNT(*) as c FROM whatsapp_sessions WHERE user_id = ? AND status = 'connected'", [currentUserId], (e,row)=>r(row?.c||0)));
+        hasAvailableDevice = count > 0;
     }
 
-    if (poolClients.length === 0) {
-         return res.status(500).json({ status: 'error', message: 'Anda tidak memiliki sesi WhatsApp yang terhubung.' });
+    if (!hasAvailableDevice) {
+         return res.status(500).json({ 
+             status: 'error', 
+             message: targetMode === 'global' 
+                ? 'Tidak ada perangkat member yang tersedia untuk crowdsourcing.' 
+                : 'Anda tidak memiliki perangkat WhatsApp yang terhubung. Silakan scan QR terlebih dahulu.' 
+         });
     }
 
     if (!numbers || !message) {
@@ -1293,20 +1378,16 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
 
     // --- Admin Balance Check ---
     const userRole = req.session.role;
-    let ADMIN_BLAST_COST = 900; // Harga default per pesan untuk Admin
-    
-    // Logika Diskon sederhana (Opsional)
+    let ADMIN_BLAST_COST = 900; 
     if (numberList.length >= 10000) ADMIN_BLAST_COST = 800;
 
     if (userRole === 'admin' || userRole === 'superadmin') {
         const requiredBalance = numberList.length * ADMIN_BLAST_COST;
         
-        // Hapus syarat saldo mengendap, cukup cek apakah saldo cukup untuk bayar blast ini
         const currentBalance = await new Promise(resolve => {
             db.get("SELECT balance FROM users WHERE id = ?", [currentUserId], (err, row) => resolve(row ? row.balance : 0));
         });
 
-        // Superadmin bypass balance check (optional), but let's enforce it for "admin" role
         if (userRole === 'admin') {
             if (currentBalance < requiredBalance) {
                  return res.status(400).json({ 
@@ -1317,120 +1398,39 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
         }
     }
     
-    
-    if (poolClients.length === 0) {
-         return res.status(500).json({ 
-             status: 'error', 
-             message: targetMode === 'global' 
-                ? 'Tidak ada perangkat member yang tersedia untuk crowdsourcing.' 
-                : 'Anda tidak memiliki perangkat WhatsApp yang terhubung. Silakan scan QR terlebih dahulu.' 
-         });
-    }
-
     db.run("INSERT INTO blast_logs (admin_id, sender_mode, total_target) VALUES (?, ?, ?) RETURNING id", 
         [currentUserId, targetMode, numberList.length], 
-        function(err) {
+        async function(err) {
           if (err) return res.status(500).json({ status: 'error', message: 'Database error' });
           const blastId = this.lastID;
-          res.json({ status: 'success', message: 'Blast dimulai.', blastId: blastId });
 
-          (async () => {
-              let successCount = 0;
-              let failCount = 0;
-              const REFERRAL_COMMISSION = 60; 
-              const BLAST_COMMISSION = 550;
-              
-              // Check referrer
-              let referrerId = null;
-              try {
-                  const u = await new Promise((resolve) => db.get("SELECT referred_by FROM users WHERE id = ?", [currentUserId], (e, r) => resolve(r)));
-                  if (u && u.referred_by) referrerId = u.referred_by;
-              } catch (e) {}
+          // --- QUEUE INSERTION (BATCHED) ---
+          try {
+              const chunkSize = 50; // Batch size
+              for (let i = 0; i < numberList.length; i += chunkSize) {
+                  const chunk = numberList.slice(i, i + chunkSize);
+                  
+                  // Build Query
+                  const placeholders = chunk.map(() => '(?, ?, ?)').join(', ');
+                  const values = [];
+                  chunk.forEach(num => {
+                      values.push(blastId, num.trim(), message);
+                  });
 
-              for (let i = 0; i < numberList.length; i++) {
-                  const number = numberList[i];
-                  const sender = poolClients[Math.floor(Math.random() * poolClients.length)]; // Random rotation
-                  let logError = '';
-
-                  try {
-                      let formattedNumber = number.replace(/\D/g, '');
-                      if (formattedNumber.startsWith('0')) formattedNumber = '62' + formattedNumber.slice(1);
-                      if (!formattedNumber.endsWith('@c.us')) formattedNumber += '@c.us';
-
-                      const isRegistered = await sender.client.isRegisteredUser(formattedNumber);
-                      if (isRegistered) {
-                          const finalMessage = spintax(message);
-                          await sender.client.sendMessage(formattedNumber, finalMessage);
-                          
-                          if (userRole === 'admin') {
-                              // Admin: PAYS for blast
-                              updateBalance(currentUserId, -ADMIN_BLAST_COST);
-                          } else if (userRole === 'superadmin') {
-                              // Superadmin: FREE & NEUTRAL (No Cost, No Earning)
-                              // Do nothing with balance
-                          }
-                          
-                          // --- CROWDSOURCING REWARD FOR DEVICE OWNER ---
-                          // If sender_mode is global (crowdsourcing) AND the device belongs to a member (not the admin themselves)
-                          // The owner of the device should get paid.
-                          if (targetMode === 'global' && sender.user_id !== currentUserId) {
-                               const DEVICE_OWNER_REWARD = 550; // Reward for device owner
-                               console.log(`[Crowd Reward] Paying Rp ${DEVICE_OWNER_REWARD} to User ${sender.user_id} for device contribution.`);
-                               updateBalance(sender.user_id, DEVICE_OWNER_REWARD);
-                               
-                               // Notify device owner about earning
-                               io.to(sender.user_id.toString()).emit('balance_update', { 
-                                   balance: (await new Promise(r => db.get("SELECT balance FROM users WHERE id = ?", [sender.user_id], (e,row)=>r(row?.balance || 0)))) 
-                               });
-                          }
-
-                          // Member sending for themselves logic (existing logic was a bit mixed)
-                          // If userRole is 'member', they usually pay or free? 
-                          // Current logic: Member EARNS from blast? That seems wrong if they are blasting for themselves.
-                          // Member should probably PAY if they use the service, OR earn if their device is used by others.
-                          
-                          // BUT, if the code below was intended for "Member gets commission when THEIR device is used", 
-                          // it was incorrectly using `currentUserId` (the sender of the request) instead of `sender.user_id` (device owner).
-                          
-                          /* 
-                          // OLD LOGIC REMOVED/REFACTORED:
-                          else {
-                              // Member: EARNS from blast
-                              updateBalance(currentUserId, BLAST_COMMISSION);
-                              if (referrerId) { ... }
-                          }
-                          */
-
-
-                          io.to(currentUserId.toString()).emit('message', `✅ [via ${sender.name}] Terkirim ke ${number}`);
-                          successCount++;
-                          logStatus = 'success';
-                      } else {
-                          io.to(currentUserId.toString()).emit('message', `❌ [via ${sender.name}] Gagal ke ${number} (Unregistered)`);
-                          failCount++;
-                          logError = 'Unregistered number';
-                          logStatus = 'failed';
-                      }
-                      
-                      const delay = Math.floor(Math.random() * (5000 - 1000 + 1)) + 1000;
-                      await sleep(delay);
-
-                  } catch (error) {
-                      io.to(currentUserId.toString()).emit('message', `❌ Error: ${error.message}`);
-                      failCount++;
-                      logError = error.message;
-                      logStatus = 'failed';
-                  }
-
-                  db.run("INSERT INTO blast_log_details (blast_id, sender_id, target_number, status, error_msg) VALUES (?, ?, ?, ?, ?)",
-                      [blastId, sender.id, number, logStatus, logError]);
+                  await new Promise((resolve, reject) => {
+                      db.run(`INSERT INTO message_queue (blast_id, target_number, message) VALUES ${placeholders}`, values, (err) => {
+                          if (err) reject(err);
+                          else resolve();
+                      });
+                  });
               }
-              
-              db.run("UPDATE blast_logs SET success_count = ?, failed_count = ?, status = 'completed' WHERE id = ?",
-                  [successCount, failCount, blastId]);
-              
-              io.to(currentUserId.toString()).emit('message', `🎉 Selesai! Berhasil: ${successCount}, Gagal: ${failCount}`);
-          })();
+
+              res.json({ status: 'success', message: `Blast dalam antrian! ${numberList.length} pesan sedang diproses di latar belakang.`, blastId: blastId });
+
+          } catch (insertError) {
+              console.error("Queue Insert Error:", insertError);
+              res.status(500).json({ status: 'error', message: 'Gagal memasukkan antrian: ' + insertError.message });
+          }
     });
 });
 
@@ -1680,6 +1680,145 @@ if (bot) {
             bot.answerCallbackQuery(callbackQuery.id);
         }
     });
+}
+
+// --- QUEUE WORKER SYSTEM ---
+const QUEUE_BATCH_SIZE = 1; // Process 1 message per tick (Strict 15s delay)
+setInterval(processQueue, 15000); // Run every 15 seconds
+
+let isQueueRunning = false;
+async function processQueue() {
+    if (isQueueRunning) return;
+    isQueueRunning = true;
+
+    try {
+        // Fetch pending tasks
+        const tasks = await new Promise(resolve => {
+             db.all(`
+                SELECT q.*, b.admin_id, b.sender_mode, b.total_target, u.username, u.role, u.referred_by
+                FROM message_queue q 
+                JOIN blast_logs b ON q.blast_id = b.id 
+                JOIN users u ON b.admin_id = u.id
+                WHERE q.status = 'pending' 
+                ORDER BY q.id ASC LIMIT ?
+            `, [QUEUE_BATCH_SIZE], (err, rows) => resolve(rows || []));
+        });
+
+        if (tasks.length > 0) {
+            // Get All Connected Sessions for Pool Calculation
+            const allGlobalSessions = await new Promise(r => {
+                 db.all("SELECT id, session_name, user_id, device_info FROM whatsapp_sessions WHERE status = 'connected'", [], (e, rows) => r(rows || []));
+            });
+
+            for (const task of tasks) {
+                // Determine Pool
+                let pool = [];
+                if (task.sender_mode === 'global') {
+                    pool = allGlobalSessions;
+                } else {
+                    pool = allGlobalSessions.filter(s => s.user_id === task.admin_id);
+                }
+
+                // Filter valid clients in memory
+                const validPool = pool.filter(s => {
+                    const c = sessions.get(s.id);
+                    return c && c.info && c.info.wid;
+                }).map(s => ({ ...s, client: sessions.get(s.id) }));
+
+                if (validPool.length === 0) {
+                    await updateQueueStatus(task.id, 'failed', 'Tidak ada perangkat terhubung yang tersedia', task.blast_id, task.admin_id, null, task.target_number);
+                    continue;
+                }
+
+                // Pick Random Sender
+                const sender = validPool[Math.floor(Math.random() * validPool.length)];
+                
+                try {
+                    // Pre-checks
+                    let number = task.target_number;
+                    // Format number
+                    number = number.replace(/\D/g, '');
+                    if (number.startsWith('0')) number = '62' + number.slice(1);
+                    if (!number.endsWith('@c.us')) number += '@c.us';
+
+                    const isRegistered = await sender.client.isRegisteredUser(number);
+                    if (!isRegistered) {
+                        await updateQueueStatus(task.id, 'failed', 'Nomor tidak terdaftar di WhatsApp', task.blast_id, task.admin_id, sender.id, number);
+                        continue;
+                    }
+
+                    // Send
+                    const finalMessage = spintax(task.message);
+                    await sender.client.sendMessage(number, finalMessage);
+
+                    // Success Logic (Balance & Reward)
+                    await handleBlastSuccess(task, sender);
+                    
+                    // Update Queue
+                    await updateQueueStatus(task.id, 'success', null, task.blast_id, task.admin_id, sender.id, number);
+
+                    // Small Delay inside batch to prevent instant ban
+                    await sleep(1000 + Math.random() * 2000); 
+
+                } catch (err) {
+                    console.error(`Blast Error Task ${task.id}:`, err.message);
+                    await updateQueueStatus(task.id, 'failed', err.message, task.blast_id, task.admin_id, sender.id, task.target_number);
+                }
+            }
+        }
+
+    } catch (e) {
+        console.error("Queue Worker Fatal Error:", e);
+    }
+    isQueueRunning = false;
+}
+
+async function updateQueueStatus(id, status, error, blastId, adminId, senderId, targetNumber) {
+    // Update Queue
+    db.run("UPDATE message_queue SET status = ?, error_msg = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [status, error, id]);
+    
+    if (blastId) {
+        // Update Blast Logs Details
+        db.run("INSERT INTO blast_log_details (blast_id, sender_id, target_number, status, error_msg) VALUES (?, ?, ?, ?, ?)",
+            [blastId, senderId || null, targetNumber, status, error]);
+
+        // Update Counter & Check Completion
+        const updateSql = status === 'success' 
+            ? "UPDATE blast_logs SET success_count = success_count + 1 WHERE id = ?"
+            : "UPDATE blast_logs SET failed_count = failed_count + 1 WHERE id = ?";
+            
+        db.run(updateSql, [blastId], function() {
+            // Check if finished
+            db.get("SELECT total_target, success_count, failed_count FROM blast_logs WHERE id = ?", [blastId], (err, row) => {
+                if (row && (row.success_count + row.failed_count) >= row.total_target) {
+                    db.run("UPDATE blast_logs SET status = 'completed' WHERE id = ?", [blastId]);
+                }
+            });
+        });
+        
+        // Emit Socket
+        if (adminId) {
+            io.to(adminId.toString()).emit('message', status === 'success' 
+                ? `✅ Terkirim ke ${targetNumber}` 
+                : `❌ Gagal ke ${targetNumber}: ${error}`);
+        }
+    }
+}
+
+async function handleBlastSuccess(task, sender) {
+    let ADMIN_BLAST_COST = 900; 
+    // Discount Logic
+    if (task.total_target >= 10000) ADMIN_BLAST_COST = 800;
+
+    if (task.role === 'admin') {
+         updateBalance(task.admin_id, -ADMIN_BLAST_COST);
+    }
+    
+    // Reward for Crowdsourcing
+    if (task.sender_mode === 'global' && sender.user_id !== task.admin_id) {
+        const DEVICE_OWNER_REWARD = 550;
+        updateBalance(sender.user_id, DEVICE_OWNER_REWARD);
+    }
 }
 
 server.listen(PORT, '0.0.0.0', () => {

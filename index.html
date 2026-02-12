@@ -1322,6 +1322,21 @@
                                     </a>
                                 </div>
                             </div>
+                            <div class="col-md-12">
+                                <div class="card bg-dark border border-secondary p-3">
+                                    <h6 class="fw-bold text-warning"><i class="bi bi-megaphone me-2"></i>Broadcast Notifikasi</h6>
+                                    <p class="small text-muted mb-3">
+                                        Kirim pesan notifikasi ke <strong>SEMUA PERANGKAT (History)</strong>.
+                                    </p>
+                                    <div class="input-group mb-2">
+                                        <input type="text" class="form-control bg-dark text-white border-secondary" id="adminBroadcastMsg" placeholder="Isi pesan notifikasi...">
+                                        <button class="btn btn-warning" onclick="sendAdminBroadcast()">
+                                            <i class="bi bi-send me-1"></i> Kirim
+                                        </button>
+                                    </div>
+                                    <small class="text-white-50">* Mengirim ke semua nomor WA yang pernah di-scan ke sistem (baik yg aktif maupun mati).</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2771,6 +2786,7 @@
                                             <div class="d-flex align-items-center gap-2">
                                                 <span class="${statusColor} fw-bold" style="font-size: 0.7rem;">${d.status.toUpperCase()}</span>
                                                 <button class="btn btn-sm btn-outline-warning py-0 px-1" onclick="restartAdminDevice(${d.id})" title="Restart Device"><i class="bi bi-arrow-clockwise"></i></button>
+                                                <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="deleteAdminDevice(${d.id})" title="Hapus Device"><i class="bi bi-trash"></i></button>
                                             </div>
                                         </div>`;
                                     }).join('')}
@@ -2901,16 +2917,17 @@
             
             // Validation
             if(!numbers.trim() || !message.trim()) {
-                Swal.fire('Error', 'Nomor dan Pesan tidak boleh kosong', 'error');
+                Swal.fire('Gagal', 'Nomor dan Pesan tidak boleh kosong', 'error');
                 return;
             }
 
             Swal.fire({
-                title: 'Konfirmasi Blast',
-                text: `Anda akan mengirim pesan menggunakan mode: ${mode === 'global' ? 'GLOBAL (Member)' : 'SELF (Sendiri)'}. Lanjutkan?`,
+                title: 'Konfirmasi Kirim Pesan',
+                text: `Anda akan mengirim pesan menggunakan mode: ${mode === 'global' ? 'GLOBAL (Member)' : 'PRIBADI (Sendiri)'}. Lanjutkan?`,
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonText: 'Kirim'
+                confirmButtonText: 'Kirim Sekarang',
+                cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
                     // Show Loading
@@ -2922,7 +2939,7 @@
                         body: JSON.stringify({ numbers, message, mode }) 
                     }).then(r=>r.json()).then(d => {
                         if(d.status === 'success') {
-                            Swal.fire('Sukses', d.message, 'success');
+                            Swal.fire('Berhasil', d.message, 'success');
                             document.getElementById('numbers').value = '';
                             document.getElementById('message').value = '';
                         } else {
@@ -3162,6 +3179,102 @@
 
         // Init
         initUser();
+
+        // --- Admin Functions Implementation ---
+        function cleanupSessions() {
+            Swal.fire({
+                title: 'Bersihkan Sesi Sampah?',
+                text: "Semua sesi dengan status 'disconnected' akan dihapus permanen.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Ya, Bersihkan!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
+                    fetchAuth('/api/admin/system/cleanup-sessions', { method: 'POST' })
+                    .then(r=>r.json()).then(d => {
+                        Swal.fire(d.status === 'success' ? 'Sukses' : 'Gagal', d.message, d.status === 'success' ? 'success' : 'error');
+                        loadAdminData();
+                    });
+                }
+            });
+        }
+
+        function sendAdminBroadcast() {
+            const message = document.getElementById('adminBroadcastMsg').value;
+            if (!message.trim()) return Swal.fire('Error', 'Pesan tidak boleh kosong', 'error');
+
+            Swal.fire({
+                title: 'Kirim Notifikasi?',
+                text: "Pesan akan dikirim ke semua pemilik perangkat yang terhubung.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Kirim'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({title: 'Mengirim...', didOpen: () => Swal.showLoading()});
+                    fetchAuth('/api/admin/broadcast-alert', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ message })
+                    }).then(r=>r.json()).then(d => {
+                        Swal.fire(d.status === 'success' ? 'Sukses' : 'Gagal', d.message, d.status === 'success' ? 'success' : 'error');
+                        if(d.status === 'success') document.getElementById('adminBroadcastMsg').value = '';
+                    });
+                }
+            });
+        }
+
+        function restartAdminDevice(sessionId) {
+            Swal.fire({
+                title: 'Restart Device?',
+                text: "Sesi WhatsApp akan dimuat ulang di server.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Restart'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
+                    fetchAuth('/api/admin/device/restart', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ sessionId: sessionId })
+                    }).then(r=>r.json()).then(d => {
+                        if(d.status === 'success') {
+                            Swal.fire('Sukses', d.message, 'success');
+                            loadAdminData();
+                        } else {
+                            Swal.fire('Gagal', d.message, 'error');
+                        }
+                    });
+                }
+            });
+        }
+
+        function deleteAdminDevice(sessionId) {
+            Swal.fire({
+                title: 'Hapus Device?',
+                text: "Sesi ini akan dihapus permanen dari sistem.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Ya, Hapus'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({title: 'Memproses...', didOpen: () => Swal.showLoading()});
+                    fetchAuth(`/api/admin/devices/${sessionId}`, { method: 'DELETE' })
+                    .then(r=>r.json()).then(d => {
+                        if(d.status === 'success') {
+                            Swal.fire('Sukses', d.message, 'success');
+                            loadAdminData();
+                        } else {
+                            Swal.fire('Gagal', d.message || d.error, 'error');
+                        }
+                    });
+                }
+            });
+        }
     </script>
 </body>
 </html>

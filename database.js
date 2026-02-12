@@ -201,6 +201,20 @@ async function initPg(pool) {
                 );
             `);
 
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS message_queue (
+                    id SERIAL PRIMARY KEY,
+                    blast_id INTEGER REFERENCES blast_logs(id),
+                    target_number TEXT,
+                    message TEXT,
+                    status TEXT DEFAULT 'pending',
+                    sender_id INTEGER,
+                    error_msg TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            `);
+
             // --- Auto Migration for missing columns ---
             try {
                 console.log("Checking for schema migrations...");
@@ -327,6 +341,19 @@ function initSqlite(db) {
             status TEXT,
             error_msg TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(blast_id) REFERENCES blast_logs(id)
+        )`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS message_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            blast_id INTEGER,
+            target_number TEXT,
+            message TEXT,
+            status TEXT DEFAULT 'pending',
+            sender_id INTEGER,
+            error_msg TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(blast_id) REFERENCES blast_logs(id)
         )`);
 
