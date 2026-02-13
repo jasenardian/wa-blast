@@ -1693,8 +1693,8 @@ if (bot) {
 }
 
 // --- QUEUE WORKER SYSTEM ---
-const QUEUE_BATCH_SIZE = 1; // Process 1 message per tick (Strict 15s delay)
-setInterval(processQueue, 15000); // Run every 15 seconds
+const QUEUE_BATCH_SIZE = 1; // Process 1 message per tick (Strict 30s delay)
+setInterval(processQueue, 30000); // Run every 30 seconds
 
 let isQueueRunning = false;
 async function processQueue() {
