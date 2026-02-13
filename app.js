@@ -190,7 +190,7 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
 
     const client = new Client({
         restartOnAuthFail: true,
-        authTimeoutMs: 120000, // 2 minutes (0 sometimes causes issues in specific versions)
+        authTimeoutMs: 120000,
         qrMaxRetries: 10,
         puppeteer: {
             headless: true,
@@ -201,16 +201,16 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
                 '--disable-accelerated-2d-canvas',
                 '--no-first-run',
                 '--no-zygote',
-                '--single-process',
+                // '--single-process', // Removed: Often causes hanging on Windows/Linux
                 '--disable-gpu'
             ]
         },
         authStrategy: new LocalAuth({ clientId: clientId }),
-        // webVersionCache: {
-        //     type: "remote",
-        //     remotePath:
-        //         "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
-        // }
+        webVersionCache: {
+            type: "remote",
+            remotePath:
+                "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
+        }
     });
 
     // Update status to scanning/init
