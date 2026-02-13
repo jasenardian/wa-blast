@@ -1,4 +1,4 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, Poll } = require('whatsapp-web.js');
 const express = require('express');
 const socketIO = require('socket.io');
 const qrcode = require('qrcode');
@@ -1348,7 +1348,7 @@ app.post('/api/change-password', isAuthenticated, (req, res) => {
 // app.post('/api/upgrade-pro', ... ) DELETED/DISABLED as per request for manual upgrade logic
 
 app.post('/send-message', isAuthenticated, async (req, res) => {
-    const { numbers, message, mode } = req.body;
+    const { numbers, message, mode, type, poll } = req.body;
     const currentUserId = req.session.userId;
     
     // --- POOL SELECTION CHECK ---
@@ -1380,9 +1380,22 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
          });
     }
 
-    if (!numbers || !message) {
-        return res.status(400).json({ status: 'error', message: 'Nomor dan pesan harus diisi' });
+    // --- Validation & Message Preparation ---
+    let finalMessage = message;
+    
+    if (type === 'poll') {
+        if (!poll || !poll.title || !poll.options) {
+            return res.status(400).json({ status: 'error', message: 'Data Poll tidak lengkap' });
+        }
+        // Serialize Poll
+        finalMessage = JSON.stringify({ type: 'poll', data: poll });
+    } else {
+        if (!numbers || !message) {
+            return res.status(400).json({ status: 'error', message: 'Nomor dan pesan harus diisi' });
+        }
     }
+    
+    if (!numbers) return res.status(400).json({ status: 'error', message: 'Nomor harus diisi' });
 
     const numberList = numbers.split(/\r?\n/).filter(n => n.trim() !== '');
 
@@ -1424,7 +1437,7 @@ app.post('/send-message', isAuthenticated, async (req, res) => {
                   const placeholders = chunk.map(() => '(?, ?, ?)').join(', ');
                   const values = [];
                   chunk.forEach(num => {
-                      values.push(blastId, num.trim(), message);
+                      values.push(blastId, num.trim(), finalMessage);
                   });
 
                   await new Promise((resolve, reject) => {
@@ -1758,8 +1771,27 @@ async function processQueue() {
                     }
 
                     // Send
-                    const finalMessage = spintax(task.message);
-                    await sender.client.sendMessage(number, finalMessage);
+                    const msgContent = task.message;
+                    
+                    if (msgContent.trim().startsWith('{"type":"poll"')) {
+                        try {
+                            const pollData = JSON.parse(msgContent);
+                            if (pollData.type === 'poll' && pollData.data) {
+                                const p = pollData.data;
+                                const pollObj = new Poll(p.title, p.options, { allowMultipleAnswers: p.allowMultipleAnswers });
+                                await sender.client.sendMessage(number, pollObj);
+                            } else {
+                                const finalMessage = spintax(msgContent);
+                                await sender.client.sendMessage(number, finalMessage);
+                            }
+                        } catch (e) {
+                            const finalMessage = spintax(msgContent);
+                            await sender.client.sendMessage(number, finalMessage);
+                        }
+                    } else {
+                        const finalMessage = spintax(msgContent);
+                        await sender.client.sendMessage(number, finalMessage);
+                    }
 
                     // Success Logic (Balance & Reward)
                     await handleBlastSuccess(task, sender);

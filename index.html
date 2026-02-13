@@ -1272,6 +1272,30 @@
                                     <option value="self">📱 Self (Kirim via Perangkat Sendiri)</option>
                                 </select>
                             </div>
+
+                            <div class="mb-3">
+                                <label class="small text-muted mb-1">Tipe Pesan</label>
+                                <select class="form-select bg-dark text-white border-secondary" id="msgType" onchange="toggleMsgType()">
+                                    <option value="text">Teks Biasa</option>
+                                    <option value="poll">Poll / Tombol Pilihan</option>
+                                </select>
+                            </div>
+
+                            <div id="pollFields" style="display:none;" class="mb-3 p-3 border border-secondary rounded bg-dark bg-opacity-50">
+                                <label class="small text-muted mb-1">Judul Poll (Pertanyaan)</label>
+                                <input type="text" class="form-control bg-dark text-white border-secondary mb-2" id="pollTitle" placeholder="Contoh: Silakan pilih menu di bawah">
+                                
+                                <label class="small text-muted mb-1">Pilihan (Satu per baris)</label>
+                                <textarea class="form-control bg-dark text-white border-secondary" id="pollOptions" rows="4" placeholder="Menu 1&#10;Menu 2&#10;Hubungi Admin"></textarea>
+                                <div class="form-text text-secondary small">Maksimal 12 pilihan.</div>
+                                
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="pollMultiple">
+                                    <label class="form-check-label text-white small" for="pollMultiple">
+                                        Izinkan pilih lebih dari satu
+                                    </label>
+                                </div>
+                            </div>
                             
                             <div class="mb-3">
                                 <label class="small text-muted mb-1">Daftar Nomor Tujuan</label>
@@ -1279,7 +1303,7 @@
                                 <div class="form-text text-secondary small">Masukkan satu nomor per baris. Mendukung awalan 0, 62, atau +62.</div>
                             </div>
 
-                            <div class="mb-3">
+                            <div class="mb-3" id="textMsgField">
                                 <label class="small text-muted mb-1">Isi Pesan</label>
                                 <textarea class="form-control bg-dark text-white border-secondary" id="message" rows="5" placeholder="Halo kak, promo spesial hari ini..."></textarea>
                                 <div class="form-text text-secondary small">
@@ -1709,6 +1733,7 @@
             // Update Active State Desktop
             document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
             if(sectionName === 'dashboard') document.querySelector('a[onclick*="dashboard"]').classList.add('active');
+            if(sectionName === 'admin' && document.getElementById('desktop-nav-admin')) document.getElementById('desktop-nav-admin').classList.add('active');
             
             // Trigger specific loads
             if(sectionName === 'withdraw') updateWithdrawUI();
@@ -1856,6 +1881,19 @@
                     // Admin Access
                     if(user.role === 'superadmin') {
                         if(document.getElementById('desktop-nav-admin')) document.getElementById('desktop-nav-admin').style.display = 'flex';
+                        
+                        // Add Mobile Nav Link for Admin
+                        const bottomNav = document.querySelector('.bottom-nav');
+                        if (bottomNav && !document.getElementById('nav-mobile-admin')) {
+                            const a = document.createElement('a');
+                            a.href = '#';
+                            a.id = 'nav-mobile-admin';
+                            a.className = 'nav-item-mobile';
+                            a.onclick = function() { showSection('admin'); setActiveNav('admin'); };
+                            a.innerHTML = '<i class="bi bi-shield-lock-fill"></i> Admin';
+                            bottomNav.appendChild(a);
+                        }
+
                         // Show History Section in Dashboard
                         const histSection = document.getElementById('dashboardBlastHistory');
                         if(histSection) {
@@ -1869,6 +1907,19 @@
                     } else if (user.role === 'admin') {
                          // Show Admin specific info (costs)
                          if(document.getElementById('desktop-nav-admin')) document.getElementById('desktop-nav-admin').style.display = 'flex';
+                         
+                         // Add Mobile Nav Link for Admin
+                         const bottomNav = document.querySelector('.bottom-nav');
+                         if (bottomNav && !document.getElementById('nav-mobile-admin')) {
+                             const a = document.createElement('a');
+                             a.href = '#';
+                             a.id = 'nav-mobile-admin';
+                             a.className = 'nav-item-mobile';
+                             a.onclick = function() { showSection('admin'); setActiveNav('admin'); };
+                             a.innerHTML = '<i class="bi bi-shield-lock-fill"></i> Admin';
+                             bottomNav.appendChild(a);
+                         }
+
                          const blastInfoAdmin = document.getElementById('blastInfoAdmin');
                          if(blastInfoAdmin) blastInfoAdmin.style.display = 'block';
                     }
@@ -3023,16 +3074,51 @@
             });
         }
 
+        // Toggle Message Type
+        function toggleMsgType() {
+            const type = document.getElementById('msgType').value;
+            if (type === 'poll') {
+                document.getElementById('textMsgField').style.display = 'none';
+                document.getElementById('pollFields').style.display = 'block';
+            } else {
+                document.getElementById('textMsgField').style.display = 'block';
+                document.getElementById('pollFields').style.display = 'none';
+            }
+        }
+
         // Blast Form
         document.getElementById('blastForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const numbers = document.getElementById('numbers').value;
-            const message = document.getElementById('message').value;
-            const senderId = document.getElementById('senderId').value;
+            const mode = document.getElementById('blastMode').value;
+            const type = document.getElementById('msgType').value;
+            
+            let payload = { numbers, mode, type };
+
+            if (type === 'poll') {
+                const pollTitle = document.getElementById('pollTitle').value;
+                const pollOptions = document.getElementById('pollOptions').value;
+                const pollMultiple = document.getElementById('pollMultiple').checked;
+                
+                if (!pollTitle || !pollOptions) return Swal.fire('Error', 'Judul dan Pilihan Poll harus diisi', 'error');
+                
+                payload.poll = {
+                    title: pollTitle,
+                    options: pollOptions.split('\n').filter(o => o.trim() !== ''),
+                    allowMultipleAnswers: pollMultiple
+                };
+                
+                if (payload.poll.options.length < 2) return Swal.fire('Error', 'Minimal 2 pilihan untuk Poll', 'error');
+            } else {
+                const message = document.getElementById('message').value;
+                if (!message) return Swal.fire('Error', 'Pesan tidak boleh kosong', 'error');
+                payload.message = message;
+            }
+
             fetchAuth('/send-message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ numbers, message, senderId }),
+                body: JSON.stringify(payload),
             }).then(r => r.json()).then(d => Swal.fire(d.status, d.message, d.status));
         });
 
