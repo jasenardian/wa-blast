@@ -313,10 +313,11 @@ reason: ${reason}
     });
 
     client.initialize().catch(err => {
-        console.error(`Failed to initialize client for Session ${dbSessionId}:`, err.message);
+        const errorMessage = err?.message || String(err);
+        console.error(`Failed to initialize client for Session ${dbSessionId}:`, errorMessage);
         
         // Handle specific error: Runtime.callFunctionOn timed out OR Requesting main frame too early
-        if (err.message.includes('timed out') || err.message.includes('too early')) {
+        if (errorMessage.includes('timed out') || errorMessage.includes('too early')) {
             console.log(`[Retry] Retrying initialization for Session ${dbSessionId} in 15 seconds...`);
             setTimeout(() => {
                 // Remove broken instance
@@ -333,7 +334,7 @@ reason: ${reason}
              db.run("UPDATE whatsapp_sessions SET status = 'disconnected' WHERE id = ?", [dbSessionId]);
         }
         
-        io.to(userId.toString()).emit('message', `Gagal inisialisasi sesi #${dbSessionId}: ${err.message}. Retrying...`);
+        io.to(userId.toString()).emit('message', `Gagal inisialisasi sesi #${dbSessionId}: ${errorMessage}. Retrying...`);
     });
 
     sessions.set(dbSessionId, client);
