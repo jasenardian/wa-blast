@@ -206,11 +206,11 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
             ]
         },
         authStrategy: new LocalAuth({ clientId: clientId }),
-        webVersionCache: {
-            type: "remote",
-            remotePath:
-                "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
-        }
+        // webVersionCache: {
+        //     type: "remote",
+        //     remotePath:
+        //         "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
+        // }
     });
 
     // Update status to scanning/init
@@ -680,7 +680,7 @@ app.post('/api/devices', isAuthenticated, async (req, res) => {
                         client.removeListener('qr', onQrCodeReceived);
                         console.log("Timeout waiting for QR for Pairing Code.");
                     }
-                }, 60000);
+                }, 120000);
             } catch (e) {
                 console.error("Pairing Code Error:", e);
                 io.to(userId.toString()).emit('message', `Gagal request Pairing Code: ${e.message}`);
