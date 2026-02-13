@@ -190,10 +190,9 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
 
     const client = new Client({
         restartOnAuthFail: true,
+        authTimeoutMs: 0, // No timeout
         puppeteer: {
             headless: true,
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined, // Use installed Chromium on Railway
-            protocolTimeout: 360000, // Increase timeout to 6 minutes for slow environments
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -201,26 +200,16 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
                 '--disable-accelerated-2d-canvas',
                 '--no-first-run',
                 '--no-zygote',
-                '--single-process', // PENTING: Mengurangi beban CPU/RAM di environment terbatas
-                '--disable-gpu',
-                '--disable-extensions',
-                '--disable-component-extensions-with-background-pages',
-                '--disable-default-apps',
-                '--mute-audio',
-                '--no-default-browser-check',
-                '--autoplay-policy=user-gesture-required',
-                '--disable-background-timer-throttling',
-                '--disable-backgrounding-occluded-windows',
-                '--disable-notifications',
-                '--disable-background-networking',
-                '--disable-breakpad',
-                '--disable-component-update',
-                '--disable-domain-reliability',
-                '--disable-sync'
-            ],
-            ignoreHTTPSErrors: true
+                '--single-process',
+                '--disable-gpu'
+            ]
         },
-        authStrategy: new LocalAuth({ clientId: clientId })
+        authStrategy: new LocalAuth({ clientId: clientId }),
+        webVersionCache: {
+            type: "remote",
+            remotePath:
+                "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
+        }
     });
 
     // Update status to scanning/init
@@ -316,8 +305,8 @@ reason: ${reason}
         const errorMessage = err?.message || String(err);
         console.error(`Failed to initialize client for Session ${dbSessionId}:`, errorMessage);
         
-        // Handle specific error: Runtime.callFunctionOn timed out OR Requesting main frame too early
-        if (errorMessage.includes('timed out') || errorMessage.includes('too early')) {
+        // Handle specific error: Runtime.callFunctionOn timed out OR Requesting main frame too early OR Auth Timeout
+        if (errorMessage.toLowerCase().includes('time') || errorMessage.includes('too early')) {
             console.log(`[Retry] Retrying initialization for Session ${dbSessionId} in 15 seconds...`);
             setTimeout(() => {
                 // Remove broken instance
