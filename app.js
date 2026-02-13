@@ -190,7 +190,8 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
 
     const client = new Client({
         restartOnAuthFail: true,
-        authTimeoutMs: 0, // No timeout
+        authTimeoutMs: 120000, // 2 minutes (0 sometimes causes issues in specific versions)
+        qrMaxRetries: 10,
         puppeteer: {
             headless: true,
             args: [
@@ -205,11 +206,11 @@ function initializeClient(dbSessionId, userId, customSessionId = null) {
             ]
         },
         authStrategy: new LocalAuth({ clientId: clientId }),
-        webVersionCache: {
-            type: "remote",
-            remotePath:
-                "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
-        }
+        // webVersionCache: {
+        //     type: "remote",
+        //     remotePath:
+        //         "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html",
+        // }
     });
 
     // Update status to scanning/init
